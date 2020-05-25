@@ -7,6 +7,7 @@
 #include <ATen/native/SortingUtils.h>
 #include <ATen/NamedTensorUtils.h>
 #include <ATen/NamedTensorUtils.h>
+#include <ATen/native/StridedRandomAccessor.h>
 
 namespace at {
 namespace native {
