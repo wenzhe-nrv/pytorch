@@ -6,11 +6,6 @@
 namespace at { namespace native {
 
 template <typename T>
-struct ConstDefaultPtrTraits {
-  using PtrType = const T*;
-};
-
-template <typename T>
 struct DefaultPtrTraits {
   using PtrType = T*;
 };
@@ -22,23 +17,18 @@ struct DefaultPtrTraits {
 #endif
 
 template <typename T>
-struct ConstRestrictPtrTraits {
-  using PtrType = const T* RESTRICT;
-};
-
-template <typename T>
 struct RestrictPtrTraits {
   using PtrType = T* RESTRICT;
 };
 
 template <
   typename T,
-  template <typename U> class PtrTraits = ConstDefaultPtrTraits,
+  template <typename U> class PtrTraits = DefaultPtrTraits,
   typename index_t = int64_t
 >
 class ConstStridedRandomAccessor {
 public:
-  using PtrType = typename PtrTraits<T>::PtrType;
+  using PtrType = const typename PtrTraits<T>::PtrType;
   using RefType = const T&;
 
   // Constructors {
