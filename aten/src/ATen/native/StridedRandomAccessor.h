@@ -28,7 +28,7 @@ template <
 >
 class ConstStridedRandomAccessor {
 public:
-  using PtrType = const typename PtrTraits<T>::PtrType;
+  using PtrType = typename PtrTraits<T>::PtrType;
   using RawPtrType = const T*;
   using RefType = const T&;
 
@@ -241,6 +241,81 @@ public:
     return static_cast<const BaseType&>(*this) - other;
   }
   // }
+};
+
+// IndexedStridedRandomAccessor stores two accessors:
+// one for values, the other for indicies.
+// It is designed to be used with sorting-like operations,
+// hence the accessors should not be constant.
+// For CPU only.
+template <
+  typename T,
+  typename index_t = int64_t,
+  template <typename U> class PtrTraits = DefaultPtrTraits
+>
+class IndexedStridedRandomAccessor
+  : public StridedRandomAccessor<T, index_t, PtrTraits> {
+public:
+  using ValueStridedAccessor = StridedRandomAccessor<T, index_t, PtrTraits>;
+  using IndexStridedAccessor = StridedRandomAccessor<index_t, index_t, PtrTraits>;
+  using ValuePtrType = typename ValueStridedAccessor::PtrType;
+  using IndexPtrType = typename IndexStridedAccessor::PtrType;
+  using RefType = std::pair<T&, index_t&>;
+
+  // Constructors {
+  IndexedStridedRandomAccessor(
+    const ValueStridedAccessor& vsa, const IndexStridedAccessor& isa
+  ) : ValueStridedAccessor(vsa), isa{isa}
+  {}
+
+  IndexedStridedRandomAccessor()
+    : ValueStridedAccessor()
+  {}
+  // }
+
+  // Pointer-like operations {
+  RefType operator*() const {
+    return RefType(*getBase(), *isa);
+  }
+
+  RefType operator[](index_t idx) const {
+    return RefType(getBase()[idx], isa[idx]);
+  }
+  // }
+
+  // Prefix/postfix increment/decrement {
+  IndexedStridedRandomAccessor& operator++() {
+    ++getBase();
+    ++isa;
+    return *this;
+  }
+
+  IndexedStridedRandomAccessor operator++(int) {
+    auto copy = IndexedStridedRandomAccessor(*this);
+    ++*this;
+    return copy;
+  }
+
+  IndexedStridedRandomAccessor& operator--() {
+    --getBase();
+    --isa;
+    return *this;
+  }
+
+  IndexedStridedRandomAccessor operator--(int) {
+    auto copy = IndexedStridedRandomAccessor(*this);
+    --*this;
+    return copy;
+  }
+  // }
+  
+private:
+  inline ValueStridedAccessor& getBase() {
+    return static_cast<ValueStridedAccessor&>(*this);
+  }
+
+protected:
+  IndexStridedAccessor isa;
 };
 
 }} // namespace at::native
