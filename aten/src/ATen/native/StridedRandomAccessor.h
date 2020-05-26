@@ -23,8 +23,8 @@ struct RestrictPtrTraits {
 
 template <
   typename T,
-  template <typename U> class PtrTraits = DefaultPtrTraits,
-  typename index_t = int64_t
+  typename index_t = int64_t,
+  template <typename U> class PtrTraits = DefaultPtrTraits
 >
 class ConstStridedRandomAccessor {
 public:
@@ -148,13 +148,13 @@ protected:
 
 template <
   typename T,
-  template <typename U> class PtrTraits = DefaultPtrTraits,
-  typename index_t = int64_t
+  typename index_t = int64_t,
+  template <typename U> class PtrTraits = DefaultPtrTraits
 >
 class StridedRandomAccessor 
-  : public ConstStridedRandomAccessor<T, PtrTraits, index_t> {
+  : public ConstStridedRandomAccessor<T, index_t, PtrTraits> {
 public:
-  using BaseType = ConstStridedRandomAccessor<T, PtrTraits, index_t>;
+  using BaseType = ConstStridedRandomAccessor<T, index_t, PtrTraits>;
   using PtrType = typename PtrTraits<T>::PtrType;
   using RawPtrType = T*;
   using RefType = T&;
