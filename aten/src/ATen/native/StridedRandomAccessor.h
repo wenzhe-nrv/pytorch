@@ -28,122 +28,148 @@ template <
 >
 class ConstStridedRandomAccessor {
 public:
+  using difference_type = index_t;
+  using value_type = const T;
+  using pointer = const typename PtrTraits<T>::PtrType;
+  using reference = const value_type&;
+  using iterator_category = std::random_access_iterator_tag;
+
   using PtrType = typename PtrTraits<T>::PtrType;
-  using RawPtrType = const T*;
-  using RefType = const T&;
 
   // Constructors {
-  C10_HOST_DEVICE ConstStridedRandomAccessor(PtrType ptr, index_t stride)
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor(PtrType ptr, difference_type stride)
     : ptr{ptr}, stride{stride}
   {}
 
-  C10_HOST_DEVICE explicit ConstStridedRandomAccessor(PtrType ptr)
-    : ptr{ptr}, stride{static_cast<index_t>(1)}
+  C10_HOST_DEVICE
+  explicit ConstStridedRandomAccessor(PtrType ptr)
+    : ptr{ptr}, stride{static_cast<difference_type>(1)}
   {}
 
-  C10_HOST_DEVICE ConstStridedRandomAccessor()
-    : ptr{nullptr}, stride{static_cast<index_t>(1)}
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor()
+    : ptr{nullptr}, stride{static_cast<difference_type>(1)}
   {}
   // }
 
   // Pointer-like operations {
-  C10_HOST_DEVICE RefType operator*() const {
+  C10_HOST_DEVICE
+  reference operator*() const {
     return *ptr;
   }
 
-  C10_HOST_DEVICE RawPtrType operator->() const {
-    return reinterpret_cast<RawPtrType>(ptr);
+  C10_HOST_DEVICE
+  const value_type* operator->() const {
+    return reinterpret_cast<const value_type*>(ptr);
   }
 
-  C10_HOST_DEVICE RefType operator[](index_t idx) const {
+  C10_HOST_DEVICE
+  reference operator[](difference_type idx) const {
     return ptr[idx * stride];
   }
   // }
 
   // Prefix/postfix increment/decrement {
-  C10_HOST_DEVICE ConstStridedRandomAccessor& operator++() {
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor& operator++() {
     ptr += stride;
     return *this;
   }
 
-  C10_HOST_DEVICE ConstStridedRandomAccessor operator++(int) {
-    PtrType copy_ptr = ptr;
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor operator++(int) {
+    auto copy = *this;
     ++*this;
-    return ConstStridedRandomAccessor(copy_ptr, stride);
+    return copy;
   }
 
-  C10_HOST_DEVICE ConstStridedRandomAccessor& operator--() {
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor& operator--() {
     ptr -= stride;
     return *this;
   }
 
-  C10_HOST_DEVICE ConstStridedRandomAccessor operator--(int) {
-    PtrType copy_ptr = ptr;
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor operator--(int) {
+    auto copy = *this;
     --*this;
-    return ConstStridedRandomAccessor(copy_ptr, stride);
+    return copy;
   }
   // }
 
   // Arithmetic operations {
-  C10_HOST_DEVICE ConstStridedRandomAccessor& operator+=(index_t offset) {
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor& operator+=(difference_type offset) {
     ptr += offset * stride;
     return *this;
   }
 
-  C10_HOST_DEVICE ConstStridedRandomAccessor operator+(index_t offset) const {
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor operator+(difference_type offset) const {
     return ConstStridedRandomAccessor(ptr + offset * stride, stride);
   }
 
-  friend C10_HOST_DEVICE ConstStridedRandomAccessor operator+(
-    index_t offset,
+  C10_HOST_DEVICE
+  friend ConstStridedRandomAccessor operator+(
+    difference_type offset,
     const ConstStridedRandomAccessor& accessor
   ) {
     return accessor + offset;
   }
 
-  C10_HOST_DEVICE ConstStridedRandomAccessor& operator-=(index_t offset) {
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor& operator-=(difference_type offset) {
     ptr -= offset * stride;
     return *this;
   }
 
-  C10_HOST_DEVICE ConstStridedRandomAccessor operator-(index_t offset) const {
+  C10_HOST_DEVICE
+  ConstStridedRandomAccessor operator-(difference_type offset) const {
     return ConstStridedRandomAccessor(ptr - offset * stride, stride);
   }
 
-  C10_HOST_DEVICE index_t operator-(const ConstStridedRandomAccessor& other) const {
+  C10_HOST_DEVICE
+  difference_type operator-(const ConstStridedRandomAccessor& other) const {
     return ptr - other.ptr;
   }
   // }
   
   // Comparison operators {
-  C10_HOST_DEVICE bool operator==(const ConstStridedRandomAccessor& other) const {
+  C10_HOST_DEVICE
+  bool operator==(const ConstStridedRandomAccessor& other) const {
     return (ptr == other.ptr) && (stride == other.stride);
   }
 
-  C10_HOST_DEVICE bool operator!=(const ConstStridedRandomAccessor& other) const {
+  C10_HOST_DEVICE
+  bool operator!=(const ConstStridedRandomAccessor& other) const {
     return !(*this == other);
   }
 
-  C10_HOST_DEVICE bool operator<(const ConstStridedRandomAccessor& other) const {
+  C10_HOST_DEVICE
+  bool operator<(const ConstStridedRandomAccessor& other) const {
     return ptr < other.ptr;
   }
 
-  C10_HOST_DEVICE bool operator<=(const ConstStridedRandomAccessor& other) const {
+  C10_HOST_DEVICE
+  bool operator<=(const ConstStridedRandomAccessor& other) const {
     return (*this < other) || (*this == other);
   }
 
-  C10_HOST_DEVICE bool operator>(const ConstStridedRandomAccessor& other) const {
+  C10_HOST_DEVICE
+  bool operator>(const ConstStridedRandomAccessor& other) const {
     return !(*this <= other);
   }
 
-  C10_HOST_DEVICE bool operator>=(const ConstStridedRandomAccessor& other) const {
+  C10_HOST_DEVICE
+  bool operator>=(const ConstStridedRandomAccessor& other) const {
     return !(*this < other);
   }
   // }
 
 protected:
   PtrType ptr;
-  index_t stride;
+  difference_type stride;
 };
 
 template <
@@ -154,90 +180,109 @@ template <
 class StridedRandomAccessor 
   : public ConstStridedRandomAccessor<T, index_t, PtrTraits> {
 public:
+  using difference_type = index_t;
+  using value_type = T;
+  using pointer = typename PtrTraits<T>::PtrType;
+  using reference = value_type&;
+
   using BaseType = ConstStridedRandomAccessor<T, index_t, PtrTraits>;
   using PtrType = typename PtrTraits<T>::PtrType;
-  using RawPtrType = T*;
-  using RefType = T&;
 
   // Constructors {
-  C10_HOST_DEVICE StridedRandomAccessor(PtrType ptr, index_t stride)
+  C10_HOST_DEVICE
+  StridedRandomAccessor(PtrType ptr, difference_type stride)
     : BaseType(ptr, stride)
   {}
 
-  C10_HOST_DEVICE explicit StridedRandomAccessor(PtrType ptr)
+  C10_HOST_DEVICE
+  explicit StridedRandomAccessor(PtrType ptr)
     : BaseType(ptr)
   {}
 
-  C10_HOST_DEVICE StridedRandomAccessor()
+  C10_HOST_DEVICE
+  StridedRandomAccessor()
     : BaseType()
   {}
   // }
 
   // Pointer-like operations {
-  C10_HOST_DEVICE RefType operator*() const {
+  C10_HOST_DEVICE
+  reference operator*() const {
     return *this->ptr;
   }
 
-  C10_HOST_DEVICE RawPtrType operator->() const {
-    return reinterpret_cast<RawPtrType>(this->ptr);
+  C10_HOST_DEVICE
+  value_type* operator->() const {
+    return reinterpret_cast<value_type*>(this->ptr);
   }
 
-  C10_HOST_DEVICE RefType operator[](index_t idx) const {
+  C10_HOST_DEVICE
+  reference operator[](difference_type idx) const {
     return this->ptr[idx * this->stride];
   }
   // }
 
   // Prefix/postfix increment/decrement {
-  C10_HOST_DEVICE StridedRandomAccessor& operator++() {
+  C10_HOST_DEVICE
+  StridedRandomAccessor& operator++() {
     this->ptr += this->stride;
     return *this;
   }
 
-  C10_HOST_DEVICE StridedRandomAccessor operator++(int) {
-    PtrType copy_ptr = this->ptr;
+  C10_HOST_DEVICE
+  StridedRandomAccessor operator++(int) {
+    auto copy = *this;
     ++*this;
-    return StridedRandomAccessor(copy_ptr, this->stride);
+    return copy;
   }
 
-  C10_HOST_DEVICE StridedRandomAccessor& operator--() {
+  C10_HOST_DEVICE
+  StridedRandomAccessor& operator--() {
     this->ptr -= this->stride;
     return *this;
   }
 
-  C10_HOST_DEVICE StridedRandomAccessor operator--(int) {
-    PtrType copy_ptr = this->ptr;
+  C10_HOST_DEVICE
+  StridedRandomAccessor operator--(int) {
+    auto copy = *this;
     --*this;
-    return StridedRandomAccessor(copy_ptr, this->stride);
+    return copy;
   }
   // }
 
   // Arithmetic operations {
-  C10_HOST_DEVICE StridedRandomAccessor& operator+=(index_t offset) {
+  C10_HOST_DEVICE
+  StridedRandomAccessor& operator+=(difference_type offset) {
     this->ptr += offset * this->stride;
     return *this;
   }
 
-  C10_HOST_DEVICE StridedRandomAccessor operator+(index_t offset) const {
+  C10_HOST_DEVICE
+  StridedRandomAccessor operator+(difference_type offset) const {
     return StridedRandomAccessor(this->ptr + offset * this->stride, this->stride);
   }
 
-  friend C10_HOST_DEVICE StridedRandomAccessor operator+(
-    index_t offset,
+  C10_HOST_DEVICE
+  friend StridedRandomAccessor operator+(
+    difference_type offset,
     const StridedRandomAccessor& accessor
   ) {
     return accessor + offset;
   }
 
-  C10_HOST_DEVICE StridedRandomAccessor& operator-=(index_t offset) {
+  C10_HOST_DEVICE
+  StridedRandomAccessor& operator-=(difference_type offset) {
     this->ptr -= offset * this->stride;
     return *this;
   }
 
-  C10_HOST_DEVICE StridedRandomAccessor operator-(index_t offset) const {
+  C10_HOST_DEVICE
+  StridedRandomAccessor operator-(difference_type offset) const {
     return StridedRandomAccessor(this->ptr - offset * this->stride, this->stride);
   }
 
-  C10_HOST_DEVICE index_t operator-(const BaseType& other) const {
+  C10_HOST_DEVICE
+  difference_type operator-(const BaseType& other) const {
     return static_cast<const BaseType&>(*this) - other;
   }
   // }
@@ -256,6 +301,9 @@ template <
 class IndexedStridedRandomAccessor
   : public StridedRandomAccessor<T, index_t, PtrTraits> {
 public:
+  using value_type = std::pair<T, index_t>&;
+  using difference_type = index_t;
+
   using ValueStridedAccessor = StridedRandomAccessor<T, index_t, PtrTraits>;
   using IndexStridedAccessor = StridedRandomAccessor<index_t, index_t, PtrTraits>;
   using ValuePtrType = typename ValueStridedAccessor::PtrType;
@@ -306,6 +354,35 @@ public:
     auto copy = IndexedStridedRandomAccessor(*this);
     --*this;
     return copy;
+  }
+  // }
+
+  // Arithmetic operations {
+  IndexedStridedRandomAccessor& operator+=(index_t offset) {
+    getBase() += offset;
+    isa += offset;
+    return *this;
+  }
+
+  IndexedStridedRandomAccessor operator+(index_t offset) const {
+    return IndexedStridedRandomAccessor(getBase() + offset, isa + offset);
+  }
+
+  friend IndexedStridedRandomAccessor operator+(
+    index_t offset,
+    const IndexedStridedRandomAccessor& accessor
+  ) {
+    return accessor + offset;
+  }
+
+  IndexedStridedRandomAccessor& operator-=(index_t offset) {
+    getBase() -= offset;
+    isa -= offset;
+    return *this;
+  }
+
+  IndexedStridedRandomAccessor operator-(index_t offset) const {
+    return IndexedStridedRandomAccessor(getBase() - offset, isa - offset);
   }
   // }
   
