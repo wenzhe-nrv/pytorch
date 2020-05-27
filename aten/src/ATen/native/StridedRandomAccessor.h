@@ -301,14 +301,15 @@ template <
 class IndexedStridedRandomAccessor
   : public StridedRandomAccessor<T, index_t, PtrTraits> {
 public:
-  using value_type = std::pair<T, index_t>&;
   using difference_type = index_t;
+  using value_type = std::pair<T, index_t>;
+  using pointer = typename PtrTraits<T>::PtrType;
+  using reference = std::pair<T&, index_t&>;
 
   using ValueStridedAccessor = StridedRandomAccessor<T, index_t, PtrTraits>;
   using IndexStridedAccessor = StridedRandomAccessor<index_t, index_t, PtrTraits>;
   using ValuePtrType = typename ValueStridedAccessor::PtrType;
   using IndexPtrType = typename IndexStridedAccessor::PtrType;
-  using RefType = std::pair<T&, index_t&>;
 
   // Constructors {
   IndexedStridedRandomAccessor(
@@ -322,12 +323,12 @@ public:
   // }
 
   // Pointer-like operations {
-  RefType operator*() const {
-    return RefType(*getBase(), *isa);
+  reference operator*() const {
+    return reference(*getBase(), *isa);
   }
 
-  RefType operator[](index_t idx) const {
-    return RefType(getBase()[idx], isa[idx]);
+  reference operator[](difference_type idx) const {
+    return reference(getBase()[idx], isa[idx]);
   }
   // }
 
@@ -358,37 +359,45 @@ public:
   // }
 
   // Arithmetic operations {
-  IndexedStridedRandomAccessor& operator+=(index_t offset) {
+  IndexedStridedRandomAccessor& operator+=(difference_type offset) {
     getBase() += offset;
     isa += offset;
     return *this;
   }
 
-  IndexedStridedRandomAccessor operator+(index_t offset) const {
+  IndexedStridedRandomAccessor operator+(difference_type offset) const {
     return IndexedStridedRandomAccessor(getBase() + offset, isa + offset);
   }
 
   friend IndexedStridedRandomAccessor operator+(
-    index_t offset,
+    difference_type offset,
     const IndexedStridedRandomAccessor& accessor
   ) {
     return accessor + offset;
   }
 
-  IndexedStridedRandomAccessor& operator-=(index_t offset) {
+  IndexedStridedRandomAccessor& operator-=(difference_type offset) {
     getBase() -= offset;
     isa -= offset;
     return *this;
   }
 
-  IndexedStridedRandomAccessor operator-(index_t offset) const {
+  IndexedStridedRandomAccessor operator-(difference_type offset) const {
     return IndexedStridedRandomAccessor(getBase() - offset, isa - offset);
+  }
+
+  difference_type operator-(const ValueStridedAccessor& other) const {
+    return getBase() - other;
   }
   // }
   
-private:
+protected:
   inline ValueStridedAccessor& getBase() {
     return static_cast<ValueStridedAccessor&>(*this);
+  }
+
+  inline const ValueStridedAccessor& getBase() const {
+    return static_cast<const ValueStridedAccessor&>(*this);
   }
 
 protected:
