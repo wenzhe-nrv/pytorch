@@ -166,7 +166,7 @@ public:
     return !(*this < other);
   }
   // }
-
+  
 protected:
   PtrType ptr;
   difference_type stride;
@@ -286,122 +286,6 @@ public:
     return static_cast<const BaseType&>(*this) - other;
   }
   // }
-};
-
-// IndexedStridedRandomAccessor stores two accessors:
-// one for values, the other for indicies.
-// It is designed to be used with sorting-like operations,
-// hence the accessors should not be constant.
-// For CPU only.
-template <
-  typename T,
-  typename index_t = int64_t,
-  template <typename U> class PtrTraits = DefaultPtrTraits
->
-class IndexedStridedRandomAccessor
-  : public StridedRandomAccessor<T, index_t, PtrTraits> {
-public:
-  using difference_type = index_t;
-  using value_type = std::pair<T, index_t>;
-  using pointer = typename PtrTraits<T>::PtrType;
-  using reference = std::pair<T&, index_t&>;
-
-  using ValueStridedAccessor = StridedRandomAccessor<T, index_t, PtrTraits>;
-  using IndexStridedAccessor = StridedRandomAccessor<index_t, index_t, PtrTraits>;
-  using ValuePtrType = typename ValueStridedAccessor::PtrType;
-  using IndexPtrType = typename IndexStridedAccessor::PtrType;
-
-  // Constructors {
-  IndexedStridedRandomAccessor(
-    const ValueStridedAccessor& vsa, const IndexStridedAccessor& isa
-  ) : ValueStridedAccessor(vsa), isa{isa}
-  {}
-
-  IndexedStridedRandomAccessor()
-    : ValueStridedAccessor()
-  {}
-  // }
-
-  // Pointer-like operations {
-  reference operator*() const {
-    return reference(*getBase(), *isa);
-  }
-
-  reference operator[](difference_type idx) const {
-    return reference(getBase()[idx], isa[idx]);
-  }
-  // }
-
-  // Prefix/postfix increment/decrement {
-  IndexedStridedRandomAccessor& operator++() {
-    ++getBase();
-    ++isa;
-    return *this;
-  }
-
-  IndexedStridedRandomAccessor operator++(int) {
-    auto copy = IndexedStridedRandomAccessor(*this);
-    ++*this;
-    return copy;
-  }
-
-  IndexedStridedRandomAccessor& operator--() {
-    --getBase();
-    --isa;
-    return *this;
-  }
-
-  IndexedStridedRandomAccessor operator--(int) {
-    auto copy = IndexedStridedRandomAccessor(*this);
-    --*this;
-    return copy;
-  }
-  // }
-
-  // Arithmetic operations {
-  IndexedStridedRandomAccessor& operator+=(difference_type offset) {
-    getBase() += offset;
-    isa += offset;
-    return *this;
-  }
-
-  IndexedStridedRandomAccessor operator+(difference_type offset) const {
-    return IndexedStridedRandomAccessor(getBase() + offset, isa + offset);
-  }
-
-  friend IndexedStridedRandomAccessor operator+(
-    difference_type offset,
-    const IndexedStridedRandomAccessor& accessor
-  ) {
-    return accessor + offset;
-  }
-
-  IndexedStridedRandomAccessor& operator-=(difference_type offset) {
-    getBase() -= offset;
-    isa -= offset;
-    return *this;
-  }
-
-  IndexedStridedRandomAccessor operator-(difference_type offset) const {
-    return IndexedStridedRandomAccessor(getBase() - offset, isa - offset);
-  }
-
-  difference_type operator-(const ValueStridedAccessor& other) const {
-    return getBase() - other;
-  }
-  // }
-  
-protected:
-  inline ValueStridedAccessor& getBase() {
-    return static_cast<ValueStridedAccessor&>(*this);
-  }
-
-  inline const ValueStridedAccessor& getBase() const {
-    return static_cast<const ValueStridedAccessor&>(*this);
-  }
-
-protected:
-  IndexStridedAccessor isa;
 };
 
 }} // namespace at::native
