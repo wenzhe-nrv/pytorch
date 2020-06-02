@@ -220,6 +220,11 @@ public:
   reference operator[](difference_type idx) const {
     return this->ptr[idx * this->stride];
   }
+
+  C10_HOST_DEVICE
+  const reference operator[](difference_type idx) {
+    return this->ptr[idx * this->stride];
+  }
   // }
 
   // Prefix/postfix increment/decrement {
