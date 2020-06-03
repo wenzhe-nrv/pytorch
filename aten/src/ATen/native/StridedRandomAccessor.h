@@ -294,6 +294,29 @@ public:
   // }
 };
 
+template <typename Accessor>
+class operator_brackets_proxy {
+  using reference = typename std::iterator_traits<Accessor>::reference;
+  using value_type = typename std::iterator_traits<Accessor>::value_type;
+
+public:
+  operator_brackets_proxy(Accessor const& accessor)
+    : accessor(accessor)
+  {}
+
+  operator reference() const {
+    return *accessor;
+  }
+
+  operator_brackets_proxy& operator=(value_type const& val) {
+    *accessor = val;
+    return *this;
+  }
+
+private:
+  Accessor accessor;
+};
+
 template <typename Value, typename Index>
 class reference_proxy {
 public:
@@ -304,18 +327,18 @@ public:
   reference_proxy(const reference& ref) : holder(ref)
   {}
 
-  reference_proxy& operator=(const reference& ref) {
-    holder = ref;
-    return *this;
-  }
+  //reference_proxy& operator=(const reference& ref) {
+  //  holder = ref;
+  //  return *this;
+  //}
 
-  reference_proxy& operator=(const value_type& val) {
-    holder = std::tie(std::get<0>(val), std::get<1>(val));
-    return *this;
-  }
+  //operator value_type() const {
+  //  return value_type{std::get<0>(holder), std::get<1>(holder)};
+  //}
 
-  operator value_type() const {
-    return value_type{std::get<0>(holder), std::get<1>(holder)};
+  friend void swap(reference_proxy& rp1, reference_proxy& rp2) {
+    rp1.holder.swap(rp2.holder);
+    std::cout << "MY SWAP" << std::endl;
   }
 
 //protected:
@@ -340,17 +363,15 @@ public:
   using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
   using index_t = typename IndexTraits<ValueAccessor>::index_type;
 
-  friend void swap(ref_proxy& rp1, ref_proxy& rp2) {
-    std::swap(std::get<0>(rp1.holder), std::get<0>(rp2.holder));
-    std::swap(std::get<1>(rp1.holder), std::get<1>(rp2.holder));
-    std::cout << "MY SWAP" << std::endl;
-  }
+  //friend void swap(ref_proxy& rp1, ref_proxy& rp2) {
+  //  std::swap(std::get<0>(rp1.holder), std::get<0>(rp2.holder));
+  //  std::swap(std::get<1>(rp1.holder), std::get<1>(rp2.holder));
+  //  std::cout << "MY SWAP" << std::endl;
+  //}
 
   IndexedRandomAccessor(ValueAccessor va, IndexAccessor ia)
     : va(va), ia(ia), ref(std::tie(*va, *ia))
-  {
-    std::cout << "MY CONSTR" << std::endl;
-  }
+  {}
 
   IndexedRandomAccessor(
     ValuePtrType vptr, index_t vstride,
@@ -360,18 +381,18 @@ public:
 
   // Pointer-like operations {
   reference operator*() {
-    ref = std::tie(*va, *ia);
+    ref_proxy ref_new = std::tie(*va, *ia);
+    swap(ref, ref_new);
     return ref;
   }
 
   auto* operator->() const {
     return va.operator->();
-    std::cout << "MY OP*" << std::endl;
   }
 
   reference operator[](index_t idx) {
-    std::cout << "MY OP[]" << std::endl;
-    ref = std::tie(va[idx], ia[idx]);
+    ref_proxy ref_new = std::tie(va[idx], ia[idx]);
+    swap(ref, ref_new);
     return ref;
   }
   // }
