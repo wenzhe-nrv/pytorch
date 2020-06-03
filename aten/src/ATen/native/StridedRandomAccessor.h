@@ -6,6 +6,11 @@
 namespace at { namespace native {
 
 template <typename T>
+struct IndexTraits {
+  using index_type = typename T::index_type;
+};
+
+template <typename T>
 struct DefaultPtrTraits {
   using PtrType = T*;
 };
@@ -35,6 +40,7 @@ public:
   using iterator_category = std::random_access_iterator_tag;
 
   using PtrType = typename PtrTraits<T>::PtrType;
+  using index_type = index_t;
 
   // Constructors {
   C10_HOST_DEVICE
@@ -296,10 +302,10 @@ public:
 template <typename ValueAccessor, typename IndexAccessor>
 class IndexedRandomAccessor {
 public:
-  using value_type = std::pair<
+  using value_type = std::tuple<
     typename std::iterator_traits<ValueAccessor>::value_type,
     typename std::iterator_traits<IndexAccessor>::value_type>;
-  using reference_type = std::pair<
+  using reference = std::tuple<
     typename std::iterator_traits<ValueAccessor>::value_type&,
     typename std::iterator_traits<IndexAccessor>::value_type&>;
   using pointer = typename std::iterator_traits<ValueAccessor>::pointer;
@@ -308,10 +314,120 @@ public:
 
   using ValuePtrType = typename std::iterator_traits<ValueAccessor>::pointer;
   using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
+  using index_t = typename IndexTraits<ValueAccessor>::index_type;
 
   IndexedRandomAccessor(ValueAccessor va, IndexAccessor ia)
-    : va{va}, ia{ia}
+    : va(va), ia(ia)
   {}
+
+  IndexedRandomAccessor(
+    ValuePtrType vptr, index_t vstride,
+    IndexPtrType iptr, index_t istride)
+    : va(vptr, vstride), ia(iptr, istride)
+  {}
+
+  // Pointer-like operations {
+  reference operator*() const {
+    return std::tie(*va, *ia);
+  }
+
+  auto* operator->() const {
+    return va.operator->();
+  }
+
+  reference operator[](index_t idx) const {
+    return std::tie(va[idx], ia[idx]);
+  }
+
+  const reference operator[](index_t idx) {
+    return std::tie(va[idx], ia[idx]);
+  }
+  // }
+
+  // Prefix/postfix increment/decrement {
+  IndexedRandomAccessor& operator++() {
+    ++va;
+    ++ia;
+    return *this;
+  }
+
+  IndexedRandomAccessor operator++(int) {
+    auto copy = *this;
+    ++*this;
+    return copy;
+  }
+
+  IndexedRandomAccessor& operator--() {
+    --va;
+    --ia;
+    return *this;
+  }
+
+  IndexedRandomAccessor operator--(int) {
+    auto copy = *this;
+    --*this;
+    return copy;
+  }
+  // }
+
+  // Arithmetic operations {
+  IndexedRandomAccessor& operator+=(index_t offset) {
+    va += offset;
+    ia += offset;
+    return *this;
+  }
+
+  IndexedRandomAccessor operator+(index_t offset) const {
+    return IndexedRandomAccessor(va + offset, ia + offset);
+  }
+
+  friend IndexedRandomAccessor operator+(
+    index_t offset,
+    const IndexedRandomAccessor& accessor
+  ) {
+    return accessor + offset;
+  }
+
+  IndexedRandomAccessor& operator-=(index_t offset) {
+    va -= offset;
+    ia -= offset;
+    return *this;
+  }
+
+  IndexedRandomAccessor operator-(index_t offset) const {
+    return IndexedRandomAccessor(va - offset, ia - offset);
+  }
+
+  difference_type operator-(const IndexedRandomAccessor& other) const {
+    return va - other.va;
+  }
+  // }
+
+  // Comparison operators {
+  bool operator==(const IndexedRandomAccessor& other) const {
+    return va == other.va;
+  }
+
+  bool operator!=(const IndexedRandomAccessor& other) const {
+    return va != other.va;
+  }
+
+  bool operator<(const IndexedRandomAccessor& other) const {
+    return va < other.va;
+  }
+
+  bool operator<=(const IndexedRandomAccessor& other) const {
+    return va <= other.va;
+  }
+
+  bool operator>(const IndexedRandomAccessor& other) const {
+    return va > other.va;
+  }
+
+  bool operator>=(const IndexedRandomAccessor& other) const {
+    return va >= other.va;
+  }
+  // }
 
 protected:
   ValueAccessor va;
