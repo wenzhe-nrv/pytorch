@@ -85,7 +85,7 @@ public:
 
   C10_HOST_DEVICE
   ConstStridedRandomAccessor operator++(int) {
-    auto copy = *this;
+    ConstStridedRandomAccessor copy(*this);
     ++*this;
     return copy;
   }
@@ -98,7 +98,7 @@ public:
 
   C10_HOST_DEVICE
   ConstStridedRandomAccessor operator--(int) {
-    auto copy = *this;
+    ConstStridedRandomAccessor copy(*this);
     --*this;
     return copy;
   }
@@ -237,7 +237,7 @@ public:
 
   C10_HOST_DEVICE
   StridedRandomAccessor operator++(int) {
-    auto copy = *this;
+    StridedRandomAccessor copy(*this);
     ++*this;
     return copy;
   }
@@ -250,7 +250,7 @@ public:
 
   C10_HOST_DEVICE
   StridedRandomAccessor operator--(int) {
-    auto copy = *this;
+    StridedRandomAccessor copy(*this);
     --*this;
     return copy;
   }
@@ -294,15 +294,44 @@ public:
   // }
 };
 
+template <typename Value, typename Index>
+class reference_proxy {
+public:
+  using type = reference_proxy<Value, Index>;
+  using value_type = std::tuple<Value, Index>;
+  using reference = std::tuple<Value&, Index&>;
+
+  reference_proxy(const reference& ref) : holder(ref)
+  {}
+
+  reference_proxy& operator=(const reference& ref) {
+    holder = ref;
+    return *this;
+  }
+
+  reference_proxy& operator=(const value_type& val) {
+    holder = std::tie(std::get<0>(val), std::get<1>(val));
+    return *this;
+  }
+
+  operator value_type() const {
+    return value_type{std::get<0>(holder), std::get<1>(holder)};
+  }
+
+//protected:
+  reference holder;
+};
+
 template <typename ValueAccessor, typename IndexAccessor>
 class IndexedRandomAccessor {
 public:
   using value_type = std::tuple<
     typename std::iterator_traits<ValueAccessor>::value_type,
     typename std::iterator_traits<IndexAccessor>::value_type>;
-  using reference = std::tuple<
-    typename std::iterator_traits<ValueAccessor>::value_type&,
-    typename std::iterator_traits<IndexAccessor>::value_type&>;
+  using ref_proxy = reference_proxy<
+    typename std::iterator_traits<ValueAccessor>::value_type,
+    typename std::iterator_traits<IndexAccessor>::value_type>;
+  using reference = ref_proxy&;
   using pointer = typename std::iterator_traits<ValueAccessor>::pointer;
   using difference_type = typename std::iterator_traits<ValueAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
@@ -311,27 +340,39 @@ public:
   using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
   using index_t = typename IndexTraits<ValueAccessor>::index_type;
 
+  friend void swap(ref_proxy& rp1, ref_proxy& rp2) {
+    std::swap(std::get<0>(rp1.holder), std::get<0>(rp2.holder));
+    std::swap(std::get<1>(rp1.holder), std::get<1>(rp2.holder));
+    std::cout << "MY SWAP" << std::endl;
+  }
+
   IndexedRandomAccessor(ValueAccessor va, IndexAccessor ia)
-    : va(va), ia(ia)
-  {}
+    : va(va), ia(ia), ref(std::tie(*va, *ia))
+  {
+    std::cout << "MY CONSTR" << std::endl;
+  }
 
   IndexedRandomAccessor(
     ValuePtrType vptr, index_t vstride,
     IndexPtrType iptr, index_t istride)
-    : va(vptr, vstride), ia(iptr, istride)
+    : va(vptr, vstride), ia(iptr, istride), ref(std::tie(*va, *ia))
   {}
 
   // Pointer-like operations {
-  reference operator*() const {
-    return std::tie(*va, *ia);
+  reference operator*() {
+    ref = std::tie(*va, *ia);
+    return ref;
   }
 
   auto* operator->() const {
     return va.operator->();
+    std::cout << "MY OP*" << std::endl;
   }
 
-  reference operator[](index_t idx) const {
-    return std::tie(va[idx], ia[idx]);
+  reference operator[](index_t idx) {
+    std::cout << "MY OP[]" << std::endl;
+    ref = std::tie(va[idx], ia[idx]);
+    return ref;
   }
   // }
 
@@ -343,7 +384,7 @@ public:
   }
 
   IndexedRandomAccessor operator++(int) {
-    auto copy = *this;
+    IndexedRandomAccessor copy(*this);
     ++*this;
     return copy;
   }
@@ -355,7 +396,7 @@ public:
   }
 
   IndexedRandomAccessor operator--(int) {
-    auto copy = *this;
+    IndexedRandomAccessor copy(*this);
     --*this;
     return copy;
   }
@@ -423,6 +464,7 @@ public:
 protected:
   ValueAccessor va;
   IndexAccessor ia;
+  ref_proxy ref;
 };
 
 }} // namespace at::native
