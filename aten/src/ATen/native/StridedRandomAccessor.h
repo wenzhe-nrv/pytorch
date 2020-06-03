@@ -226,11 +226,6 @@ public:
   reference operator[](index_t idx) const {
     return this->ptr[idx * this->stride];
   }
-
-  C10_HOST_DEVICE
-  const reference operator[](index_t idx) {
-    return this->ptr[idx * this->stride];
-  }
   // }
 
   // Prefix/postfix increment/decrement {
@@ -336,10 +331,6 @@ public:
   }
 
   reference operator[](index_t idx) const {
-    return std::tie(va[idx], ia[idx]);
-  }
-
-  const reference operator[](index_t idx) {
     return std::tie(va[idx], ia[idx]);
   }
   // }
