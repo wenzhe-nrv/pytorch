@@ -321,29 +321,6 @@ private:
   Accessor accessor;
 };
 
-template<typename reference_proxy>
-class reference_proxy_holder {
-public:
-  using reference = typename reference_proxy::reference&;
-  using value_type = typename reference_proxy::value_type;
-
-  reference_proxy_holder(reference_proxy const& ref)
-    :ref(ref)
-  {}
-
-  operator reference() {
-    return ref;
-  }
-
-  reference_proxy_holder& operator=(value_type const& val) {
-    *ref = val;
-    return *this;
-  }
-
-private:
-  reference_proxy ref;
-};
-
 template <typename ValueAccessor, typename IndexAccessor>
 class IndexedRandomAccessor {
 public:
@@ -359,7 +336,6 @@ public:
 
   using self_type = IndexedRandomAccessor<ValueAccessor, IndexAccessor>;
   using ref_proxy = reference_proxy<self_type>;
-  using ref_proxy_holder = reference_proxy_holder<ref_proxy>;
 
   using ValuePtrType = typename std::iterator_traits<ValueAccessor>::pointer;
   using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
