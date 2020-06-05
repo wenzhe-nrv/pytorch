@@ -295,11 +295,11 @@ public:
 };
 
 template <typename ...Ts>
-struct tuple_holder {
+struct references_holder {
   using tuple_references = std::tuple<Ts&...>;
   using tuple_values = std::tuple<Ts...>;
 
-  tuple_holder(tuple_references data)
+  references_holder(tuple_references data)
     : data{data}
   {}
 
@@ -315,7 +315,7 @@ struct tuple_holder {
     return data;
   }
 
-  tuple_holder& operator=(tuple_values val) {
+  references_holder& operator=(tuple_values val) {
     data = val;
     return *this;
   }
@@ -324,12 +324,12 @@ struct tuple_holder {
 };
 
 template <typename ...Ts>
-void swap(tuple_holder<Ts...> th1, tuple_holder<Ts...> th2) {
+void swap(references_holder<Ts...> th1, references_holder<Ts...> th2) {
   return std::swap(th1.data, th2.data);
 }
 
 template<int N, typename ...Ts>
-auto get(tuple_holder<Ts...>& th) -> decltype(std::get<N>(th.data)){
+auto get(references_holder<Ts...>& th) -> decltype(std::get<N>(th.data)){
   return std::get<N>(th.data);
 }
 
@@ -369,15 +369,11 @@ public:
     typename std::iterator_traits<ValueAccessor>::value_type;
   using index_accessor_value_type =
     typename std::iterator_traits<IndexAccessor>::value_type;
-  using value_accessor_reference =
-    typename std::iterator_traits<ValueAccessor>::reference;
-  using index_accessor_reference =
-    typename std::iterator_traits<IndexAccessor>::reference;
 
   using value_type = std::tuple<
     value_accessor_value_type,
     index_accessor_value_type>;
-  using reference = tuple_holder<
+  using reference = references_holder<
     value_accessor_value_type,
     index_accessor_value_type>;
   using pointer = typename std::iterator_traits<ValueAccessor>::pointer;
