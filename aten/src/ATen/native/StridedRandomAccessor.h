@@ -294,6 +294,33 @@ public:
   // }
 };
 
+template <typename ...Ts>
+struct tuple_holder {
+  tuple_holder(std::tuple<Ts...> data)
+    : data{data}
+  {}
+
+  operator std::tuple<Ts...>() {
+    return data;
+  }
+
+  std::tuple<Ts...>& as_tuple() {
+    return data;
+  }
+
+  std::tuple<Ts...> data;
+};
+
+template <typename ...Ts>
+void swap(tuple_holder<Ts...> th1, tuple_holder<Ts...> th2) {
+  return std::swap(th1.data, th2.data);
+}
+
+template<int N, typename ...Ts>
+auto get(tuple_holder<Ts...> th)->decltype(std::get<N>(th.data)){
+  return std::get<N>(th.data);
+}
+
 template <typename Accessor>
 class reference_proxy {
 public:
