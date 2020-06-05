@@ -329,7 +329,7 @@ void swap(tuple_holder<Ts...> th1, tuple_holder<Ts...> th2) {
 }
 
 template<int N, typename ...Ts>
-auto get(tuple_holder<Ts...> th)->decltype(std::get<N>(th.data)){
+auto get(tuple_holder<Ts...>& th) -> decltype(std::get<N>(th.data)){
   return std::get<N>(th.data);
 }
 
