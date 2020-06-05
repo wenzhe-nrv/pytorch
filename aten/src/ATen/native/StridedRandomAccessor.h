@@ -296,21 +296,31 @@ public:
 
 template <typename ...Ts>
 struct tuple_holder {
-  using tuple_type = std::tuple<Ts...>;
+  using tuple_references = std::tuple<Ts&...>;
+  using tuple_values = std::tuple<Ts...>;
 
-  tuple_holder(tuple_type data)
+  tuple_holder(tuple_references data)
     : data{data}
   {}
 
-  operator tuple_type() {
+  operator tuple_references() {
     return data;
   }
 
-  tuple_type& as_tuple() {
+  tuple_references& as_tuple() {
     return data;
   }
 
-  tuple_type data;
+  operator tuple_values() {
+    return data;
+  }
+
+  tuple_holder& operator=(tuple_values val) {
+    data = val;
+    return *this;
+  }
+
+  tuple_references data;
 };
 
 template <typename ...Ts>
@@ -368,8 +378,8 @@ public:
     value_accessor_value_type,
     index_accessor_value_type>;
   using reference = tuple_holder<
-    value_accessor_reference,
-    index_accessor_reference>;
+    value_accessor_value_type,
+    index_accessor_value_type>;
   using pointer = typename std::iterator_traits<ValueAccessor>::pointer;
   using difference_type = typename std::iterator_traits<ValueAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
@@ -390,10 +400,7 @@ public:
 
   // Pointer-like operations {
   reference operator*() {
-    return tuple_holder<
-      value_accessor_value_type&,
-      index_accessor_value_type&
-    >(std::tie(*va, *ia));
+    return std::tie(*va, *ia);
   }
 
   auto* operator->() const {
