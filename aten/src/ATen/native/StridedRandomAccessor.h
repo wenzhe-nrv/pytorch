@@ -296,19 +296,21 @@ public:
 
 template <typename ...Ts>
 struct tuple_holder {
-  tuple_holder(std::tuple<Ts...> data)
+  using tuple_type = std::tuple<Ts...>;
+
+  tuple_holder(tuple_type data)
     : data{data}
   {}
 
-  operator std::tuple<Ts...>() {
+  operator tuple_type() {
     return data;
   }
 
-  std::tuple<Ts...>& as_tuple() {
+  tuple_type& as_tuple() {
     return data;
   }
 
-  std::tuple<Ts...> data;
+  tuple_type data;
 };
 
 template <typename ...Ts>
@@ -322,12 +324,12 @@ auto get(tuple_holder<Ts...> th)->decltype(std::get<N>(th.data)){
 }
 
 template <typename Accessor>
-class reference_proxy {
+class operator_brackets_proxy {
 public:
   using reference = typename std::iterator_traits<Accessor>::reference;
   using value_type = typename std::iterator_traits<Accessor>::value_type;
 
-  reference_proxy(Accessor const& accessor)
+  operator_brackets_proxy(Accessor const& accessor)
     : accessor(accessor)
   {}
 
@@ -339,7 +341,7 @@ public:
     return *accessor;
   }
 
-  reference_proxy& operator=(value_type const& val) {
+  operator_brackets_proxy& operator=(value_type const& val) {
     *accessor = val;
     return *this;
   }
@@ -351,18 +353,26 @@ private:
 template <typename ValueAccessor, typename IndexAccessor>
 class IndexedRandomAccessor {
 public:
+  using self_type = IndexedRandomAccessor<ValueAccessor, IndexAccessor>;
+
+  using value_accessor_value_type =
+    typename std::iterator_traits<ValueAccessor>::value_type;
+  using index_accessor_value_type =
+    typename std::iterator_traits<IndexAccessor>::value_type;
+  using value_accessor_reference =
+    typename std::iterator_traits<ValueAccessor>::reference;
+  using index_accessor_reference =
+    typename std::iterator_traits<IndexAccessor>::reference;
+
   using value_type = std::tuple<
-    typename std::iterator_traits<ValueAccessor>::value_type,
-    typename std::iterator_traits<IndexAccessor>::value_type>;
-  using reference = std::tuple<
-    typename std::iterator_traits<ValueAccessor>::value_type&,
-    typename std::iterator_traits<IndexAccessor>::value_type&>;
+    value_accessor_value_type,
+    index_accessor_value_type>;
+  using reference = tuple_holder<
+    value_accessor_reference,
+    index_accessor_reference>;
   using pointer = typename std::iterator_traits<ValueAccessor>::pointer;
   using difference_type = typename std::iterator_traits<ValueAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
-
-  using self_type = IndexedRandomAccessor<ValueAccessor, IndexAccessor>;
-  using ref_proxy = reference_proxy<self_type>;
 
   using ValuePtrType = typename std::iterator_traits<ValueAccessor>::pointer;
   using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
@@ -380,7 +390,10 @@ public:
 
   // Pointer-like operations {
   reference operator*() {
-    return std::tie(*va, *ia);
+    return tuple_holder<
+      value_accessor_value_type&,
+      index_accessor_value_type&
+    >(std::tie(*va, *ia));
   }
 
   auto* operator->() const {
@@ -388,7 +401,9 @@ public:
   }
 
   reference operator[](index_t idx) {
-    return ref_proxy(IndexedRandomAccessor(va + idx, ia + idx));
+    return operator_brackets_proxy<self_type>(
+      IndexedRandomAccessor(va + idx, ia + idx)
+    );
   }
   // }
 
