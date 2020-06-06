@@ -15,10 +15,6 @@ struct references_holder {
     return refs;
   }
 
-  references& as_tuple() {
-    return refs;
-  }
-
   operator values() {
     return refs;
   }
