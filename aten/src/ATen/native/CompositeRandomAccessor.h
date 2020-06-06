@@ -64,18 +64,18 @@ private:
   Accessor accessor;
 };
 
-template <typename ValueAccessor, typename IndexAccessor>
+template <typename KeyAccessor, typename ValueAccessor>
 class IndexedRandomAccessor {
-  using self_type = IndexedRandomAccessor<ValueAccessor, IndexAccessor>;
+  using self_type = IndexedRandomAccessor<KeyAccessor, ValueAccessor>;
 
-  using ValuePtrType = typename std::iterator_traits<ValueAccessor>::pointer;
-  using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
-  using index_t = typename IndexTraits<ValueAccessor>::index_type;
+  using ValuePtrType = typename std::iterator_traits<KeyAccessor>::pointer;
+  using IndexPtrType = typename std::iterator_traits<ValueAccessor>::pointer;
+  using index_t = typename IndexTraits<KeyAccessor>::index_type;
 
   using value_accessor_value_type =
-    typename std::iterator_traits<ValueAccessor>::value_type;
+    typename std::iterator_traits<KeyAccessor>::value_type;
   using index_accessor_value_type =
-    typename std::iterator_traits<IndexAccessor>::value_type;
+    typename std::iterator_traits<ValueAccessor>::value_type;
 
 public:
   using value_type = std::tuple<
@@ -84,11 +84,11 @@ public:
   using reference = references_holder<
     value_accessor_value_type,
     index_accessor_value_type>;
-  using pointer = typename std::iterator_traits<ValueAccessor>::pointer;
-  using difference_type = typename std::iterator_traits<ValueAccessor>::difference_type;
+  using pointer = typename std::iterator_traits<KeyAccessor>::pointer;
+  using difference_type = typename std::iterator_traits<KeyAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
 
-  IndexedRandomAccessor(ValueAccessor va, IndexAccessor ia)
+  IndexedRandomAccessor(KeyAccessor va, ValueAccessor ia)
     : va(va), ia(ia)
   {}
 
@@ -200,8 +200,8 @@ public:
   // }
 
 protected:
-  ValueAccessor va;
-  IndexAccessor ia;
+  KeyAccessor va;
+  ValueAccessor ia;
 };
 
 }} // namespace at::native
