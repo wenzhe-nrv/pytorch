@@ -2,6 +2,13 @@
 
 namespace at { namespace native {
 
+// reference_holder generalized a reference `Type&`
+// to a tuple of references `tuple<Types&...>`.
+//
+// It is designed to be used as a reference surrogate
+// for the `CompositeRandomAccessor::reference` type trait
+// which combines reference types of its template
+// parameters.
 template <typename ...Ts>
 struct references_holder {
   using references = std::tuple<Ts&...>;
