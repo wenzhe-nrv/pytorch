@@ -28,13 +28,13 @@ struct references_holder {
 };
 
 template <typename ...Ts>
-void swap(references_holder<Ts...> th1, references_holder<Ts...> th2) {
-  return std::swap(th1.refs, th2.refs);
+void swap(references_holder<Ts...> rh1, references_holder<Ts...> rh2) {
+  return std::swap(rh1.refs, rh2.refs);
 }
 
 template<int N, typename ...Ts>
-auto get(references_holder<Ts...>& th) -> decltype(std::get<N>(th.refs)) {
-  return std::get<N>(th.refs);
+auto get(references_holder<Ts...>& rh) -> decltype(std::get<N>(rh.refs)) {
+  return std::get<N>(rh.refs);
 }
 
 template <typename Accessor>
