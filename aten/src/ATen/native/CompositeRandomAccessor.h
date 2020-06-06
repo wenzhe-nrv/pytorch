@@ -66,14 +66,18 @@ private:
 
 template <typename ValueAccessor, typename IndexAccessor>
 class IndexedRandomAccessor {
-public:
   using self_type = IndexedRandomAccessor<ValueAccessor, IndexAccessor>;
+
+  using ValuePtrType = typename std::iterator_traits<ValueAccessor>::pointer;
+  using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
+  using index_t = typename IndexTraits<ValueAccessor>::index_type;
 
   using value_accessor_value_type =
     typename std::iterator_traits<ValueAccessor>::value_type;
   using index_accessor_value_type =
     typename std::iterator_traits<IndexAccessor>::value_type;
 
+public:
   using value_type = std::tuple<
     value_accessor_value_type,
     index_accessor_value_type>;
@@ -83,10 +87,6 @@ public:
   using pointer = typename std::iterator_traits<ValueAccessor>::pointer;
   using difference_type = typename std::iterator_traits<ValueAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
-
-  using ValuePtrType = typename std::iterator_traits<ValueAccessor>::pointer;
-  using IndexPtrType = typename std::iterator_traits<IndexAccessor>::pointer;
-  using index_t = typename IndexTraits<ValueAccessor>::index_type;
 
   IndexedRandomAccessor(ValueAccessor va, IndexAccessor ia)
     : va(va), ia(ia)
