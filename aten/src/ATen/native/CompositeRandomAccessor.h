@@ -10,7 +10,8 @@ namespace at { namespace native {
 // which combines reference types of its template
 // parameters.
 template <typename ...Ts>
-struct references_holder {
+class references_holder {
+public:
   using references = std::tuple<Ts&...>;
   using values = std::tuple<Ts...>;
 
@@ -31,25 +32,29 @@ struct references_holder {
     return *this;
   }
 
+  references& as_tuple() {
+    return refs;
+  }
+
+  friend void swap(references_holder rh1, references_holder rh2) {
+    return std::swap(rh1.refs, rh2.refs);
+  }
+
+protected:
   references refs;
 };
 
-template <typename ...Ts>
-void swap(references_holder<Ts...> rh1, references_holder<Ts...> rh2) {
-  return std::swap(rh1.refs, rh2.refs);
-}
-
 template<int N, typename ...Ts>
-auto get(references_holder<Ts...>& rh) -> decltype(std::get<N>(rh.refs)) {
-  return std::get<N>(rh.refs);
+auto get(references_holder<Ts...>& rh) -> decltype(std::get<N>(rh.as_tuple())) {
+  return std::get<N>(rh.as_tuple());
 }
 
 template <typename Accessor>
 class operator_brackets_proxy {
-public:
   using reference = typename std::iterator_traits<Accessor>::reference;
   using value_type = typename std::iterator_traits<Accessor>::value_type;
 
+public:
   operator_brackets_proxy(Accessor const& accessor)
     : accessor(accessor)
   {}
