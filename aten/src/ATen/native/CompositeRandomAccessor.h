@@ -33,7 +33,7 @@ void swap(references_holder<Ts...> th1, references_holder<Ts...> th2) {
 }
 
 template<int N, typename ...Ts>
-auto get(references_holder<Ts...>& th) -> decltype(std::get<N>(th.refs)){
+auto get(references_holder<Ts...>& th) -> decltype(std::get<N>(th.refs)) {
   return std::get<N>(th.refs);
 }
 
