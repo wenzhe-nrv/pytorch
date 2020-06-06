@@ -65,143 +65,135 @@ private:
 };
 
 template <typename KeyAccessor, typename ValueAccessor>
-class IndexedRandomAccessor {
-  using self_type = IndexedRandomAccessor<KeyAccessor, ValueAccessor>;
+class CompositeRandomAccessor {
+  using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor>;
 
-  using ValuePtrType = typename std::iterator_traits<KeyAccessor>::pointer;
-  using IndexPtrType = typename std::iterator_traits<ValueAccessor>::pointer;
   using index_t = typename IndexTraits<KeyAccessor>::index_type;
 
-  using value_accessor_value_type =
+  using key_accessor_value_type =
     typename std::iterator_traits<KeyAccessor>::value_type;
-  using index_accessor_value_type =
+  using value_accessor_value_type =
     typename std::iterator_traits<ValueAccessor>::value_type;
 
 public:
   using value_type = std::tuple<
-    value_accessor_value_type,
-    index_accessor_value_type>;
+    key_accessor_value_type,
+    value_accessor_value_type>;
   using reference = references_holder<
-    value_accessor_value_type,
-    index_accessor_value_type>;
+    key_accessor_value_type,
+    value_accessor_value_type>;
   using pointer = typename std::iterator_traits<KeyAccessor>::pointer;
   using difference_type = typename std::iterator_traits<KeyAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
 
-  IndexedRandomAccessor(KeyAccessor va, ValueAccessor ia)
-    : va(va), ia(ia)
-  {}
-
-  IndexedRandomAccessor(
-    ValuePtrType vptr, index_t vstride,
-    IndexPtrType iptr, index_t istride)
-    : va(vptr, vstride), ia(iptr, istride)
+  CompositeRandomAccessor(KeyAccessor keys, ValueAccessor values)
+    : keys(keys), values(values)
   {}
 
   // Pointer-like operations {
   reference operator*() {
-    return std::tie(*va, *ia);
+    return std::tie(*keys, *values);
   }
 
   auto* operator->() const {
-    return va.operator->();
+    return keys.operator->();
   }
 
   reference operator[](index_t idx) {
     return operator_brackets_proxy<self_type>(
-      IndexedRandomAccessor(va + idx, ia + idx)
+      CompositeRandomAccessor(keys + idx, values + idx)
     );
   }
   // }
 
   // Prefix/postfix increment/decrement {
-  IndexedRandomAccessor& operator++() {
-    ++va;
-    ++ia;
+  CompositeRandomAccessor& operator++() {
+    ++keys;
+    ++values;
     return *this;
   }
 
-  IndexedRandomAccessor operator++(int) {
-    IndexedRandomAccessor copy(*this);
+  CompositeRandomAccessor operator++(int) {
+    CompositeRandomAccessor copy(*this);
     ++*this;
     return copy;
   }
 
-  IndexedRandomAccessor& operator--() {
-    --va;
-    --ia;
+  CompositeRandomAccessor& operator--() {
+    --keys;
+    --values;
     return *this;
   }
 
-  IndexedRandomAccessor operator--(int) {
-    IndexedRandomAccessor copy(*this);
+  CompositeRandomAccessor operator--(int) {
+    CompositeRandomAccessor copy(*this);
     --*this;
     return copy;
   }
   // }
 
   // Arithmetic operations {
-  IndexedRandomAccessor& operator+=(index_t offset) {
-    va += offset;
-    ia += offset;
+  CompositeRandomAccessor& operator+=(index_t offset) {
+    keys += offset;
+    values += offset;
     return *this;
   }
 
-  IndexedRandomAccessor operator+(index_t offset) const {
-    return IndexedRandomAccessor(va + offset, ia + offset);
+  CompositeRandomAccessor operator+(index_t offset) const {
+    return CompositeRandomAccessor(keys + offset, values + offset);
   }
 
-  friend IndexedRandomAccessor operator+(
+  friend CompositeRandomAccessor operator+(
     index_t offset,
-    const IndexedRandomAccessor& accessor
+    const CompositeRandomAccessor& accessor
   ) {
     return accessor + offset;
   }
 
-  IndexedRandomAccessor& operator-=(index_t offset) {
-    va -= offset;
-    ia -= offset;
+  CompositeRandomAccessor& operator-=(index_t offset) {
+    keys -= offset;
+    values -= offset;
     return *this;
   }
 
-  IndexedRandomAccessor operator-(index_t offset) const {
-    return IndexedRandomAccessor(va - offset, ia - offset);
+  CompositeRandomAccessor operator-(index_t offset) const {
+    return CompositeRandomAccessor(keys - offset, values - offset);
   }
 
-  difference_type operator-(const IndexedRandomAccessor& other) const {
-    return va - other.va;
+  difference_type operator-(const CompositeRandomAccessor& other) const {
+    return keys - other.keys;
   }
   // }
 
   // Comparison operators {
-  bool operator==(const IndexedRandomAccessor& other) const {
-    return va == other.va;
+  bool operator==(const CompositeRandomAccessor& other) const {
+    return keys == other.keys;
   }
 
-  bool operator!=(const IndexedRandomAccessor& other) const {
-    return va != other.va;
+  bool operator!=(const CompositeRandomAccessor& other) const {
+    return keys != other.keys;
   }
 
-  bool operator<(const IndexedRandomAccessor& other) const {
-    return va < other.va;
+  bool operator<(const CompositeRandomAccessor& other) const {
+    return keys < other.keys;
   }
 
-  bool operator<=(const IndexedRandomAccessor& other) const {
-    return va <= other.va;
+  bool operator<=(const CompositeRandomAccessor& other) const {
+    return keys <= other.keys;
   }
 
-  bool operator>(const IndexedRandomAccessor& other) const {
-    return va > other.va;
+  bool operator>(const CompositeRandomAccessor& other) const {
+    return keys > other.keys;
   }
 
-  bool operator>=(const IndexedRandomAccessor& other) const {
-    return va >= other.va;
+  bool operator>=(const CompositeRandomAccessor& other) const {
+    return keys >= other.keys;
   }
   // }
 
 protected:
-  KeyAccessor va;
-  ValueAccessor ia;
+  KeyAccessor keys;
+  ValueAccessor values;
 };
 
 }} // namespace at::native
