@@ -4,41 +4,41 @@ namespace at { namespace native {
 
 template <typename ...Ts>
 struct references_holder {
-  using tuple_references = std::tuple<Ts&...>;
-  using tuple_values = std::tuple<Ts...>;
+  using references = std::tuple<Ts&...>;
+  using values = std::tuple<Ts...>;
 
-  references_holder(tuple_references data)
-    : data{data}
+  references_holder(references refs)
+    : refs{refs}
   {}
 
-  operator tuple_references() {
-    return data;
+  operator references() {
+    return refs;
   }
 
-  tuple_references& as_tuple() {
-    return data;
+  references& as_tuple() {
+    return refs;
   }
 
-  operator tuple_values() {
-    return data;
+  operator values() {
+    return refs;
   }
 
-  references_holder& operator=(tuple_values val) {
-    data = val;
+  references_holder& operator=(values vals) {
+    refs = vals;
     return *this;
   }
 
-  tuple_references data;
+  references refs;
 };
 
 template <typename ...Ts>
 void swap(references_holder<Ts...> th1, references_holder<Ts...> th2) {
-  return std::swap(th1.data, th2.data);
+  return std::swap(th1.refs, th2.refs);
 }
 
 template<int N, typename ...Ts>
-auto get(references_holder<Ts...>& th) -> decltype(std::get<N>(th.data)){
-  return std::get<N>(th.data);
+auto get(references_holder<Ts...>& th) -> decltype(std::get<N>(th.refs)){
+  return std::get<N>(th.refs);
 }
 
 template <typename Accessor>
