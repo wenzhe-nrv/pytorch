@@ -9,11 +9,11 @@ namespace at { namespace native {
 // for the `CompositeRandomAccessor::reference` type trait
 // which combines reference types of its template
 // parameters.
-template <typename ...Ts>
+template <typename Values, typename References>
 class references_holder {
 public:
-  using references = std::tuple<Ts&...>;
-  using values = std::tuple<Ts...>;
+  using values = Values;
+  using references = References;
 
   references_holder(references refs)
     : refs{refs}
@@ -32,21 +32,25 @@ public:
     return *this;
   }
 
-  references& as_tuple() {
+  references& data() {
     return refs;
-  }
-
-  friend void swap(references_holder rh1, references_holder rh2) {
-    return std::swap(rh1.refs, rh2.refs);
   }
 
 protected:
   references refs;
 };
 
-template<int N, typename ...Ts>
-auto get(references_holder<Ts...>& rh) -> decltype(std::get<N>(rh.as_tuple())) {
-  return std::get<N>(rh.as_tuple());
+template <typename Values, typename References>
+void swap(
+  references_holder<Values, References> rh1,
+  references_holder<Values, References> rh2
+) {
+  return std::swap(rh1.data(), rh2.data());
+}
+
+template<int N, typename Values, typename References>
+auto get(references_holder<Values, References>& rh) -> decltype(std::get<N>(rh.data())) {
+  return std::get<N>(rh.data());
 }
 
 template <typename Accessor>
@@ -84,14 +88,21 @@ class CompositeRandomAccessor {
     typename std::iterator_traits<KeyAccessor>::value_type;
   using value_accessor_value_type =
     typename std::iterator_traits<ValueAccessor>::value_type;
+  using key_accessor_reference_type =
+    typename std::iterator_traits<KeyAccessor>::reference;
+  using value_accessor_reference_type =
+    typename std::iterator_traits<ValueAccessor>::reference;
+
+  using composite_value_type = std::tuple<
+    key_accessor_value_type,
+    value_accessor_value_type>;
+  using composite_reference = std::tuple<
+    key_accessor_reference_type,
+    value_accessor_reference_type>;
 
 public:
-  using value_type = std::tuple<
-    key_accessor_value_type,
-    value_accessor_value_type>;
-  using reference = references_holder<
-    key_accessor_value_type,
-    value_accessor_value_type>;
+  using value_type = composite_value_type;
+  using reference = references_holder<composite_value_type, composite_reference>;
   using pointer = typename std::iterator_traits<KeyAccessor>::pointer;
   using difference_type = typename std::iterator_traits<KeyAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
