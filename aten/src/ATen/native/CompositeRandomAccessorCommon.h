@@ -80,7 +80,8 @@ private:
   Accessor accessor;
 };
 
-template <typename KeyAccessor, typename ValueAccessor>
+template <typename KeyAccessor, typename ValueAccessor,
+          template <typename...> class Tuple = std::tuple>
 class CompositeRandomAccessor {
   using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor>;
 
@@ -93,10 +94,10 @@ class CompositeRandomAccessor {
   using value_accessor_reference_type =
     typename std::iterator_traits<ValueAccessor>::reference;
 
-  using composite_value_type = std::tuple<
+  using composite_value_type = Tuple<
     key_accessor_value_type,
     value_accessor_value_type>;
-  using composite_reference = std::tuple<
+  using composite_reference = Tuple<
     key_accessor_reference_type,
     value_accessor_reference_type>;
 
@@ -107,19 +108,23 @@ public:
   using difference_type = typename std::iterator_traits<KeyAccessor>::difference_type;
   using iterator_category = std::random_access_iterator_tag;
 
+  C10_HOST_DEVICE
   CompositeRandomAccessor(KeyAccessor keys, ValueAccessor values)
     : keys(keys), values(values)
   {}
 
   // Pointer-like operations {
+  C10_HOST_DEVICE
   reference operator*() {
     return std::tie(*keys, *values);
   }
 
+  C10_HOST_DEVICE
   auto* operator->() const {
     return keys.operator->();
   }
 
+  C10_HOST_DEVICE
   reference operator[](difference_type idx) {
     return operator_brackets_proxy<self_type>(
       CompositeRandomAccessor(keys + idx, values + idx)
@@ -128,24 +133,28 @@ public:
   // }
 
   // Prefix/postfix increment/decrement {
+  C10_HOST_DEVICE
   CompositeRandomAccessor& operator++() {
     ++keys;
     ++values;
     return *this;
   }
 
+  C10_HOST_DEVICE
   CompositeRandomAccessor operator++(int) {
     CompositeRandomAccessor copy(*this);
     ++*this;
     return copy;
   }
 
+  C10_HOST_DEVICE
   CompositeRandomAccessor& operator--() {
     --keys;
     --values;
     return *this;
   }
 
+  C10_HOST_DEVICE
   CompositeRandomAccessor operator--(int) {
     CompositeRandomAccessor copy(*this);
     --*this;
@@ -154,16 +163,19 @@ public:
   // }
 
   // Arithmetic operations {
+  C10_HOST_DEVICE
   CompositeRandomAccessor& operator+=(difference_type offset) {
     keys += offset;
     values += offset;
     return *this;
   }
 
+  C10_HOST_DEVICE
   CompositeRandomAccessor operator+(difference_type offset) const {
     return CompositeRandomAccessor(keys + offset, values + offset);
   }
 
+  C10_HOST_DEVICE
   friend CompositeRandomAccessor operator+(
     difference_type offset,
     const CompositeRandomAccessor& accessor
@@ -171,42 +183,51 @@ public:
     return accessor + offset;
   }
 
+  C10_HOST_DEVICE
   CompositeRandomAccessor& operator-=(difference_type offset) {
     keys -= offset;
     values -= offset;
     return *this;
   }
 
+  C10_HOST_DEVICE
   CompositeRandomAccessor operator-(difference_type offset) const {
     return CompositeRandomAccessor(keys - offset, values - offset);
   }
 
+  C10_HOST_DEVICE
   difference_type operator-(const CompositeRandomAccessor& other) const {
     return keys - other.keys;
   }
   // }
 
   // Comparison operators {
+  C10_HOST_DEVICE
   bool operator==(const CompositeRandomAccessor& other) const {
     return keys == other.keys;
   }
 
+  C10_HOST_DEVICE
   bool operator!=(const CompositeRandomAccessor& other) const {
     return keys != other.keys;
   }
 
+  C10_HOST_DEVICE
   bool operator<(const CompositeRandomAccessor& other) const {
     return keys < other.keys;
   }
 
+  C10_HOST_DEVICE
   bool operator<=(const CompositeRandomAccessor& other) const {
     return keys <= other.keys;
   }
 
+  C10_HOST_DEVICE
   bool operator>(const CompositeRandomAccessor& other) const {
     return keys > other.keys;
   }
 
+  C10_HOST_DEVICE
   bool operator>=(const CompositeRandomAccessor& other) const {
     return keys >= other.keys;
   }
