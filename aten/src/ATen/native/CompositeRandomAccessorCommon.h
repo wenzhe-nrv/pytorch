@@ -8,23 +8,28 @@ public:
   using values = Values;
   using references = References;
 
+  C10_HOST_DEVICE
   references_holder(references refs)
     : refs{refs}
   {}
 
+  C10_HOST_DEVICE
   operator references() {
     return refs;
   }
 
+  C10_HOST_DEVICE
   operator values() {
     return refs;
   }
 
+  C10_HOST_DEVICE
   references_holder& operator=(values vals) {
     refs = vals;
     return *this;
   }
 
+  C10_HOST_DEVICE
   references& data() {
     return refs;
   }
@@ -39,18 +44,22 @@ class operator_brackets_proxy {
   using value_type = typename std::iterator_traits<Accessor>::value_type;
 
 public:
+  C10_HOST_DEVICE
   operator_brackets_proxy(Accessor const& accessor)
     : accessor(accessor)
   {}
 
+  C10_HOST_DEVICE
   operator reference() {
     return *accessor;
   }
 
+  C10_HOST_DEVICE
   reference operator*() {
     return *accessor;
   }
 
+  C10_HOST_DEVICE
   operator_brackets_proxy& operator=(value_type const& val) {
     *accessor = val;
     return *this;
