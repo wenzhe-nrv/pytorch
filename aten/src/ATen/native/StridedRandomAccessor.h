@@ -2,10 +2,8 @@
 
 namespace at { namespace native {
 
-template <typename T>
-struct IndexTraits {
-  using index_type = typename T::index_type;
-};
+// The traits below are to introduce __restrict__
+// modifier on different platforms.
 
 template <typename T>
 struct DefaultPtrTraits {

@@ -80,8 +80,6 @@ template <typename KeyAccessor, typename ValueAccessor>
 class CompositeRandomAccessor {
   using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor>;
 
-  using index_t = typename IndexTraits<KeyAccessor>::index_type;
-
   using key_accessor_value_type =
     typename std::iterator_traits<KeyAccessor>::value_type;
   using value_accessor_value_type =
@@ -111,7 +109,7 @@ public:
     return keys.operator->();
   }
 
-  reference operator[](index_t idx) {
+  reference operator[](difference_type idx) {
     return operator_brackets_proxy<self_type>(
       CompositeRandomAccessor(keys + idx, values + idx)
     );
@@ -145,30 +143,30 @@ public:
   // }
 
   // Arithmetic operations {
-  CompositeRandomAccessor& operator+=(index_t offset) {
+  CompositeRandomAccessor& operator+=(difference_type offset) {
     keys += offset;
     values += offset;
     return *this;
   }
 
-  CompositeRandomAccessor operator+(index_t offset) const {
+  CompositeRandomAccessor operator+(difference_type offset) const {
     return CompositeRandomAccessor(keys + offset, values + offset);
   }
 
   friend CompositeRandomAccessor operator+(
-    index_t offset,
+    difference_type offset,
     const CompositeRandomAccessor& accessor
   ) {
     return accessor + offset;
   }
 
-  CompositeRandomAccessor& operator-=(index_t offset) {
+  CompositeRandomAccessor& operator-=(difference_type offset) {
     keys -= offset;
     values -= offset;
     return *this;
   }
 
-  CompositeRandomAccessor operator-(index_t offset) const {
+  CompositeRandomAccessor operator-(difference_type offset) const {
     return CompositeRandomAccessor(keys - offset, values - offset);
   }
 
