@@ -2,13 +2,6 @@
 
 namespace at { namespace native {
 
-// reference_holder generalized a reference `Type&`
-// to a tuple of references `tuple<Types&...>`.
-//
-// It is designed to be used as a reference surrogate
-// for the `CompositeRandomAccessor::reference` type trait
-// which combines reference types of its template
-// parameters.
 template <typename Values, typename References>
 class references_holder {
 public:
@@ -40,19 +33,6 @@ protected:
   references refs;
 };
 
-template <typename Values, typename References>
-void swap(
-  references_holder<Values, References> rh1,
-  references_holder<Values, References> rh2
-) {
-  return std::swap(rh1.data(), rh2.data());
-}
-
-template<int N, typename Values, typename References>
-auto get(references_holder<Values, References>& rh) -> decltype(std::get<N>(rh.data())) {
-  return std::get<N>(rh.data());
-}
-
 template <typename Accessor>
 class operator_brackets_proxy {
   using reference = typename std::iterator_traits<Accessor>::reference;
@@ -81,9 +61,9 @@ private:
 };
 
 template <typename KeyAccessor, typename ValueAccessor,
-          template <typename...> class Tuple = std::tuple>
+          template <typename...> class Tuple>
 class CompositeRandomAccessor {
-  using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor>;
+  using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor, Tuple>;
 
   using key_accessor_value_type =
     typename std::iterator_traits<KeyAccessor>::value_type;
