@@ -81,7 +81,7 @@ private:
 };
 
 template <typename KeyAccessor, typename ValueAccessor,
-          template <typename...> class HeterogeneousContainer = std::tuple>
+          template <typename...> class Tuple = std::tuple>
 class CompositeRandomAccessor {
   using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor>;
 
@@ -94,10 +94,10 @@ class CompositeRandomAccessor {
   using value_accessor_reference_type =
     typename std::iterator_traits<ValueAccessor>::reference;
 
-  using composite_value_type = HeterogeneousContainer<
+  using composite_value_type = Tuple<
     key_accessor_value_type,
     value_accessor_value_type>;
-  using composite_reference = HeterogeneousContainer<
+  using composite_reference = Tuple<
     key_accessor_reference_type,
     value_accessor_reference_type>;
 
