@@ -9,6 +9,13 @@ namespace at { namespace native {
 
 namespace {
 
+static void sort_kernel(
+    Tensor& values,
+    Tensor& indices,
+    int64_t dim,
+    bool descending) {
+}
+
 static void topk_kernel(
     Tensor& values,
     Tensor& indices,
@@ -85,6 +92,7 @@ static void topk_kernel(
 
 } // anonymous namespace
 
+REGISTER_DISPATCH(sort_stub, &sort_kernel);
 REGISTER_DISPATCH(topk_stub, &topk_kernel);
 
 }} //at::native
