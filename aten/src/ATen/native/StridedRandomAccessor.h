@@ -139,12 +139,12 @@ public:
   // Comparison operators {
   C10_HOST_DEVICE
   bool operator==(const ConstStridedRandomAccessor& other) const {
-    return ptr == other.ptr;
+    return (ptr == other.ptr) && (stride == other.stride);
   }
 
   C10_HOST_DEVICE
   bool operator!=(const ConstStridedRandomAccessor& other) const {
-    return ptr != other.ptr;
+    return !(*this == other);
   }
 
   C10_HOST_DEVICE
@@ -154,17 +154,17 @@ public:
 
   C10_HOST_DEVICE
   bool operator<=(const ConstStridedRandomAccessor& other) const {
-    return ptr <= other.ptr;
+    return (*this < other) || (*this == other);
   }
 
   C10_HOST_DEVICE
   bool operator>(const ConstStridedRandomAccessor& other) const {
-    return ptr > other.ptr;
+    return !(*this <= other);
   }
 
   C10_HOST_DEVICE
   bool operator>=(const ConstStridedRandomAccessor& other) const {
-    return ptr >= other.ptr;
+    return !(*this < other);
   }
   // }
   
