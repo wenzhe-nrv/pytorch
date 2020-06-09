@@ -132,7 +132,7 @@ public:
 
   C10_HOST_DEVICE
   difference_type operator-(const ConstStridedRandomAccessor& other) const {
-    return ptr - other.ptr;
+    return (ptr - other.ptr) / stride;
   }
   // }
   
