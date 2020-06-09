@@ -3,7 +3,8 @@
 #include <ATen/Parallel.h>
 #include <ATen/NumericUtils.h>
 #include <ATen/native/TensorIterator.h>
-#include <ATen/native/cpu/Loops.h>
+#include <ATen/native/StridedRandomAccessor.h>
+#include <ATen/native/cpu/CompositeRandomAccessor.h>
 #include <ATen/native/Sorting.h>
 #include <ATen/native/SortingUtils.h>
 
@@ -29,6 +30,8 @@ void _dim_apply(
     int64_t dim,
     const std::string& method_name,
     const func_t& f) {
+  dim = maybe_wrap_dim(dim, values.dim());
+
   auto iter = TensorIterator();
   iter.dont_compute_common_dtype();
   iter.dont_resize_outputs();
@@ -76,13 +79,21 @@ static void sort_kernel(
   _fill_indices(indices, dim);
   _dim_apply(
     values, indices, dim,
-    "sort_cpu", [&](
+    "sort_cpu", [](
       auto* values, int64_t values_dim_stride,
       auto* indices, int64_t indices_dim_stride,
-      int dim_size
+      int64_t dim_size
     ) {
-      *values = 5;
-      *indices = 5;
+      using scalar_t = typename std::remove_pointer<decltype(values)>::type;
+      auto values_accessor = StridedRandomAccessor<scalar_t>(values, values_dim_stride);
+      auto indices_accessor = StridedRandomAccessor<int64_t>(indices, indices_dim_stride);
+      auto composite_accessor = CompositeRandomAccessorCPU<
+        decltype(values_accessor), decltype(indices_accessor)
+      >(values_accessor, indices_accessor);
+      std::sort(composite_accessor, composite_accessor + dim_size,
+        [](auto lhs, auto rhs) {
+          return get<0>(lhs) < get<0>(rhs);
+      });
     }
   );
 }
