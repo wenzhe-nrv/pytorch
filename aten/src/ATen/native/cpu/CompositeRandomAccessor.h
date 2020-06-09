@@ -13,7 +13,7 @@ void swap(
   references_holder<Values, References> rh1,
   references_holder<Values, References> rh2
 ) {
-  return std::swap(rh1, rh2);
+  return std::swap(rh1.data(), rh2.data());
 }
 
 template <int N, typename Values, typename References>
