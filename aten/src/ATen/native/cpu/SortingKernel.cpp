@@ -12,7 +12,7 @@ namespace at { namespace native {
 namespace {
 
 void _fill_indices(Tensor& indices, int64_t dim) {
-  auto dim_size = indices.sizes()[dim];
+  auto dim_size = indices.size(dim);
   auto idx_dim = at::arange(0, dim_size, indices.options().dtype(at::kLong));
   auto idx_dim_sizes = std::vector<int64_t>(indices.dim(), 1);
   auto idx_dim_strides = std::vector<int64_t>(indices.dim(), 0);
@@ -22,6 +22,51 @@ void _fill_indices(Tensor& indices, int64_t dim) {
   indices.copy_(idx_dim_restrided);
 }
 
+template <typename func_t>
+void _dim_apply(
+    Tensor& values,
+    Tensor& indices,
+    int64_t dim,
+    const std::string& method_name,
+    const func_t& f) {
+  auto iter = TensorIterator();
+  iter.dont_compute_common_dtype();
+  iter.dont_resize_outputs();
+  iter.declare_static_shape(values.sizes(), /*squash_dim=*/dim);
+  iter.add_output(values);
+  iter.add_output(indices);
+  iter.build();
+
+  auto values_dim_stride = values.stride(dim);
+  auto indices_dim_stride = indices.stride(dim);
+  auto dim_size = values.size(dim);
+  
+  AT_DISPATCH_ALL_TYPES_AND2(
+    ScalarType::Bool, ScalarType::Half, iter.dtype(),
+    method_name, [&] {
+      auto loop = [&](char** data, const int64_t* strides, int64_t n) {
+        auto* values_data_bytes = data[0];
+        auto* indices_data_bytes = data[1];
+
+        for (int64_t i = 0; i < n; ++i) {
+          f(
+            reinterpret_cast<scalar_t*>(values_data_bytes),
+            values_dim_stride,
+            reinterpret_cast<int64_t*>(indices_data_bytes),
+            indices_dim_stride,
+            dim_size
+          );
+
+          values_data_bytes += strides[0];
+          indices_data_bytes += strides[1];
+        }
+      };
+      
+      iter.for_each(loop);
+    }
+  );
+}
+
 static void sort_kernel(
     Tensor& values,
     Tensor& indices,
@@ -29,6 +74,17 @@ static void sort_kernel(
     bool descending) {
   dim = maybe_wrap_dim(dim, values.dim());
   _fill_indices(indices, dim);
+  _dim_apply(
+    values, indices, dim,
+    "sort_cpu", [&](
+      auto* values, int64_t values_dim_stride,
+      auto* indices, int64_t indices_dim_stride,
+      int dim_size
+    ) {
+      *values = 5;
+      *indices = 5;
+    }
+  );
 }
 
 static void topk_kernel(
