@@ -17,7 +17,7 @@ void swap(
 }
 
 template <int N, typename Values, typename References>
-auto get(references_holder<Values, References>& rh) -> decltype(thrust::get<N>(rh.data())) {
+auto get(references_holder<Values, References> rh) -> decltype(thrust::get<N>(rh.data())) {
   return thrust::get<N>(rh.data());
 }
 
