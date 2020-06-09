@@ -70,17 +70,6 @@ void _dim_apply(
   );
 }
 
-template<typename Iterator, typename Comp>
-void bubbleSort(Iterator first, Iterator last, Comp comp) {
-  for (Iterator i = first; i != last; i++){
-    for (Iterator j = first; j < i; ++j) {
-      if (comp(*i, *j)) {
-        swap(*i, *j);
-      }
-    }
-  }
-}
-
 static void sort_kernel(
     Tensor& values,
     Tensor& indices,
@@ -101,11 +90,7 @@ static void sort_kernel(
       auto composite_accessor = CompositeRandomAccessorCPU<
         decltype(values_accessor), decltype(indices_accessor)
       >(values_accessor, indices_accessor);
-      //std::sort(composite_accessor, composite_accessor + dim_size,
-      //  [](auto lhs, auto rhs) {
-      //    return get<0>(lhs) < get<0>(rhs);
-      //});
-      bubbleSort(composite_accessor, composite_accessor + dim_size,
+      std::sort(composite_accessor, composite_accessor + dim_size,
         [&](auto x, auto y) {
           if (!descending) {
             return ((!_isnan<scalar_t>(get<0>(x)) && _isnan<scalar_t>(get<0>(y))) || (get<0>(x) < get<0>(y)));
@@ -113,7 +98,6 @@ static void sort_kernel(
           else {
             return ((_isnan<scalar_t>(get<0>(x)) && !_isnan<scalar_t>(get<0>(y))) || (get<0>(x) > get<0>(y)));
           }
-          //return lhs < rhs;
       });
     }
   );
