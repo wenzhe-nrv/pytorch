@@ -28,7 +28,7 @@ template <
 >
 class ConstStridedRandomAccessor {
 public:
-  using difference_type = ptrdiff_t;
+  using difference_type = index_t;
   using value_type = const T;
   using pointer = const typename PtrTraits<T>::PtrType;
   using reference = const value_type&;
@@ -139,12 +139,12 @@ public:
   // Comparison operators {
   C10_HOST_DEVICE
   bool operator==(const ConstStridedRandomAccessor& other) const {
-    return (ptr == other.ptr) && (stride == other.stride);
+    return ptr == other.ptr;
   }
 
   C10_HOST_DEVICE
   bool operator!=(const ConstStridedRandomAccessor& other) const {
-    return !(*this == other);
+    return ptr != other.ptr;
   }
 
   C10_HOST_DEVICE
@@ -154,17 +154,17 @@ public:
 
   C10_HOST_DEVICE
   bool operator<=(const ConstStridedRandomAccessor& other) const {
-    return (*this < other) || (*this == other);
+    return ptr <= other.ptr;
   }
 
   C10_HOST_DEVICE
   bool operator>(const ConstStridedRandomAccessor& other) const {
-    return !(*this <= other);
+    return ptr > other.ptr;
   }
 
   C10_HOST_DEVICE
   bool operator>=(const ConstStridedRandomAccessor& other) const {
-    return !(*this < other);
+    return ptr >= other.ptr;
   }
   // }
   
@@ -181,7 +181,7 @@ template <
 class StridedRandomAccessor 
   : public ConstStridedRandomAccessor<T, index_t, PtrTraits> {
 public:
-  using difference_type = ptrdiff_t;
+  using difference_type = index_t;
   using value_type = T;
   using pointer = typename PtrTraits<T>::PtrType;
   using reference = value_type&;
