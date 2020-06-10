@@ -70,6 +70,22 @@ void _dim_apply(
   );
 }
 
+template <typename scalar_t>
+struct KeyValueCompAsc {
+  bool operator()(auto lhs, auto rhs) {
+    return (!_isnan<scalar_t>(get<0>(lhs)) && _isnan<scalar_t>(get<0>(rhs)))
+      || (get<0>(lhs) < get<0>(rhs));
+  }
+};
+
+template <typename scalar_t>
+struct KeyValueCompDesc {
+  bool operator()(auto lhs, auto rhs) {
+    return (_isnan<scalar_t>(get<0>(lhs)) && !_isnan<scalar_t>(get<0>(rhs)))
+      || (get<0>(lhs) > get<0>(rhs));
+  }
+};
+
 static void sort_kernel(
     Tensor& values,
     Tensor& indices,
@@ -85,20 +101,22 @@ static void sort_kernel(
       int64_t dim_size
     ) {
       using scalar_t = typename std::remove_pointer<decltype(values)>::type;
-      auto values_accessor = StridedRandomAccessor<scalar_t>(values, values_dim_stride);
-      auto indices_accessor = StridedRandomAccessor<int64_t>(indices, indices_dim_stride);
+      auto values_accessor = StridedRandomAccessor<scalar_t>(
+        values, values_dim_stride);
+      auto indices_accessor = StridedRandomAccessor<int64_t>(
+        indices, indices_dim_stride);
       auto composite_accessor = CompositeRandomAccessorCPU<
         decltype(values_accessor), decltype(indices_accessor)
       >(values_accessor, indices_accessor);
-      std::sort(composite_accessor, composite_accessor + dim_size,
-        [&](auto x, auto y) {
-          if (!descending) {
-            return ((!_isnan<scalar_t>(get<0>(x)) && _isnan<scalar_t>(get<0>(y))) || (get<0>(x) < get<0>(y)));
-          }
-          else {
-            return ((_isnan<scalar_t>(get<0>(x)) && !_isnan<scalar_t>(get<0>(y))) || (get<0>(x) > get<0>(y)));
-          }
-      });
+      
+      if (descending) {
+        std::sort(composite_accessor, composite_accessor + dim_size,
+          KeyValueCompDesc<scalar_t>());
+      }
+      else {
+        std::sort(composite_accessor, composite_accessor + dim_size,
+          KeyValueCompAsc<scalar_t>());
+      }
     }
   );
 }
