@@ -56,7 +56,12 @@ class EventList(list):
             sync_events,
             key=attrgetter("thread"),
         )
-        threads = itertools.groupby(events, key=attrgetter("thread"))
+        # Group by both thread and node_id, so that events that happen to have
+        # the same thread_id but are from different nodes aren't incorrectly
+        # grouped together.
+        threads = itertools.groupby(
+            events, key=lambda event: (event.thread, event.node_id)
+        )
 
         # For each thread we keep a stack of current nested parents.
         # We maintain the invariant that each interval is a subset of all other
@@ -137,14 +142,27 @@ class EventList(list):
             # this technique is proven to give a 4x speedup.
             f.write("[")
             for evt in self:
-                f.write('{"name": "%s", '
-                        '"ph": "X", '
-                        '"ts": %s, '
-                        '"dur": %s, '
-                        '"tid": %s, '
-                        '"pid": "CPU functions", '
-                        '"args": {}}, ' % (evt.name, evt.cpu_interval.start,
-                                           evt.cpu_interval.elapsed_us(), evt.thread))
+                # Skip over remote events in trace for now.
+                if evt.is_remote:
+                    assert evt.cpu_start_offset is not None
+
+                f.write(
+                    '{"name": "%s", '
+                    '"ph": "X", '
+                    '"ts": %s, '
+                    '"dur": %s, '
+                    '"tid": %s, '
+                    '"pid": "CPU functions", '
+                    '"args": {}}, '
+                    % (
+                        evt.name,
+                        evt.cpu_interval.start,
+                        evt.cpu_interval.elapsed_us(),
+                        evt.thread
+                        if not evt.is_remote
+                        else f'" node_id:{evt.node_id}, thread_id:{evt.thread} "',
+                    )
+                )
                 for k in evt.kernels:
                     # 's' and 'f' draw Flow arrows from
                     # the CPU launch to the GPU kernel
@@ -197,8 +215,8 @@ class EventList(list):
 
         def get_key(event, group_by_input_shapes):
             if not group_by_input_shapes:
-                return event.key
-            return (event.key, str(event.input_shapes))
+                return (event.key, event.node_id)
+            return (event.key, str(event.input_shapes), event.node_id)
         for evt in self:
             stats[get_key(evt, group_by_input_shapes)].add(
                 evt, group_by_input_shapes)
@@ -369,6 +387,8 @@ class record_function(ContextDecorator):
 
     Arguments:
         name (str): Label assigned to the block of code.
+        node_id (int): ID of node, for distributed profiling. Unset in
+        non-distributed cases.
 
     Example:
         >>> x = torch.randn((1, 1), requires_grad=True)
@@ -394,13 +414,14 @@ class record_function(ContextDecorator):
         CUDA time total: 0.000us
 
     """
-    def __init__(self, name):
+    def __init__(self, name, node_id=-1):
         self.name = name
+        self.node_id = node_id
         # Whether or not we should run record function's end callbacks when exiting.
         self.run_callbacks_on_exit = True
 
     def __enter__(self):
-        self.handle = torch.ops.profiler._record_function_enter(self.name)
+        self.handle = torch.ops.profiler._record_function_enter(self.name, self.node_id)
         return self
 
     def __exit__(self, *args):
@@ -573,7 +594,7 @@ def format_time(time_us):
 def format_time_share(time_us, total_time_us):
     """Defines how to format time in FunctionEvent"""
     if total_time_us == 0:
-        assert(time_us == 0)
+        assert time_us == 0, "Expected time_us == 0 but got {}".format(time_us)
         return "NaN"
     return '{:.2f}%'.format(time_us * 100.0 / total_time_us)
 
@@ -630,9 +651,10 @@ Kernel = namedtuple('Kernel', ['name', 'device', 'interval'])
 class FunctionEvent(FormattedTimesMixin):
     """Profiling information about a single function."""
     def __init__(
-            self, id, name, thread, cpu_start, cpu_end, input_shapes=None,
-            cpu_memory_usage=0, cuda_memory_usage=0, is_async=False):
+            self, id, node_id, name, thread, cpu_start, cpu_end, input_shapes=None,
+            cpu_memory_usage=0, cuda_memory_usage=0, is_async=False, is_remote=True, cpu_start_offset=None):
         self.id = id
+        self.node_id = node_id
         self.name = name
         self.cpu_interval = Interval(cpu_start, cpu_end)
         self.thread = thread
@@ -643,6 +665,11 @@ class FunctionEvent(FormattedTimesMixin):
         self.cpu_memory_usage = cpu_memory_usage
         self.cuda_memory_usage = cuda_memory_usage
         self.is_async = is_async
+        self.is_remote = is_remote
+        self.cpu_start_offset = cpu_start_offset
+        if self.cpu_start_offset is not None:
+            assert is_remote
+            self.recompute_cpu_interval()
 
     def append_kernel(self, name, device, start, end):
         self.kernels.append(Kernel(name, device, Interval(start, end)))
@@ -655,6 +682,11 @@ class FunctionEvent(FormattedTimesMixin):
         """
         assert(isinstance(child, FunctionEvent))
         self.cpu_children.append(child)
+
+    def recompute_cpu_interval(self):
+        self.cpu_interval.start += self.cpu_start_offset
+        self.cpu_interval.end += self.cpu_start_offset
+
 
     # Note: async events don't have children, are not used when computing 'self'
     # metrics of other events, have only total cpu time
@@ -697,10 +729,11 @@ class FunctionEvent(FormattedTimesMixin):
 
     def __repr__(self):
         return (
-            '<FunctionEvent id={} cpu_time={} cpu_start={} cpu_end={} '
+            '<FunctionEvent id={} node_id={} cpu_time={} cpu_start={} cpu_end={} '
             'cpu_children={} cuda_time={} name={} thread={} input_shapes={} '
-            'cpu_memory_usage={} cuda_memory_usage={} is_async={}>'.format(
+            'cpu_memory_usage={} cuda_memory_usage={} is_async={} is_remote={}>'.format(
                 self.id,
+                self.node_id,
                 self.cpu_time_str,
                 self.cpu_interval.start,
                 self.cpu_interval.end,
@@ -712,6 +745,7 @@ class FunctionEvent(FormattedTimesMixin):
                 self.cpu_memory_usage,
                 self.cuda_memory_usage,
                 self.is_async,
+                self.is_remote,
             )
         )
 
@@ -721,6 +755,9 @@ class FunctionEventAvg(FormattedTimesMixin):
     def __init__(self):
         self.key = None
         self.count = 0
+        self.node_id = 0
+        self.is_async = False
+        self.is_remote = False
         self.cpu_time_total = 0
         self.cuda_time_total = 0
         self.self_cpu_time_total = 0
@@ -732,7 +769,12 @@ class FunctionEventAvg(FormattedTimesMixin):
 
     def add(self, other, group_by_input_shapes=False):
         if self.key is None:
+            # First function being recorded as part of FunctionEventAvg, propagate
+            # fields.
             self.key = other.key
+            self.node_id = other.node_id
+            self.is_async = other.is_async
+            self.is_remote = other.is_remote
             if group_by_input_shapes:
                 self.input_shapes = other.input_shapes
 
@@ -784,8 +826,17 @@ class StringTable(defaultdict):
 # CPU checkpoints
 
 def parse_cpu_trace(thread_records):
+    def get_record_key(record):
+        """
+        Returns a tuple to be used by parse_cpu_trace for correlating start and
+        end records.
+        """
+        return (record.handle(), record.node_id())
+
     next_id = 0
     start_record = None
+    remote_start_record = None
+    remote_start_cuda_records = {}
     cuda_records = {}
     functions = []
     record_stack = []
@@ -810,13 +861,24 @@ def parse_cpu_trace(thread_records):
         cuda_time_0 = cuda_records[cuda_record.device()]
         return cuda_time_0.cuda_elapsed_us(cuda_record) + start_record.cpu_elapsed_us(cuda_time_0)
 
-    # '__start_profile' is not guarenteed to be first, so we must find it here
+    def adjusted_time_remote(remote_cuda_record, remote_start_record, remote_cuda_start_record):
+        return remote_cuda_record.get_precomputed_cuda_elapsed_us() + remote_start_record.cpu_elapsed_us(remote_cuda_start_record)
+
+    # '__start_profile' is not guaranteed to be first, so we must find it here
+    found_start = False
     for record in itertools.chain(*thread_records):
-        if record.name() == '__start_profile':
+        is_remote = record.is_remote()
+        if is_remote:
+            continue
+        name = record.name()
+        if not found_start and name == '__start_profile':
             start_record = record
-        elif record.name() == '__cuda_start_event':
+            found_start = True
+        elif name == '__cuda_start_event':
+            # N.B.: Each CUDA device has its own __cuda_start_event.
             assert record.device() != -1
             cuda_records[record.device()] = record
+
     assert start_record is not None
 
     for thread_record_list in thread_records:
@@ -830,54 +892,116 @@ def parse_cpu_trace(thread_records):
         prev_record = None
         for record in thread_record_list:
             if (record.name() in filtered_out_names or
-                    record.handle() in filtered_handles):
-                filtered_handles.add(record.handle())
+                    get_record_key(record) in filtered_handles):
+                filtered_handles.add(get_record_key(record))
                 continue
 
             if record.kind() == 'push':
                 # workaround to reduce double logging from operator
                 # wrappers and redispatch
                 if prev_record is not None:
-                    if (prev_record.name() == record.name() and
-                            prev_record.kind() == record.kind()):
-                        filtered_handles.add(record.handle())
+                    duplicate = (
+                        prev_record.name() == record.name()
+                        and prev_record.kind() == record.kind()
+                        and prev_record.node_id() == record.node_id()
+                    )
+                    if duplicate:
+                        filtered_handles.add(get_record_key(record))
                         continue
 
-                range_starts[record.handle()] = record
-                cpu_memory_allocs[record.handle()] = 0
-                cuda_memory_allocs[record.handle()] = 0
+                range_starts[get_record_key(record)] = record
+                cpu_memory_allocs[get_record_key(record)] = 0
+                cuda_memory_allocs[get_record_key(record)] = 0
             elif record.kind() == 'pop':
-                assert record.handle() in range_starts
+                assert (
+                    get_record_key(record) in range_starts
+                ), """Expected record (name={}) with key {} to exist in range_starts.
+                    This means that the pop event did not have a corresponding push.""".format(
+                    record.name(), get_record_key(record)
+                )
 
-                start = range_starts[record.handle()]
+                start = range_starts[get_record_key(record)]
 
-                cpu_memory_usage = cpu_memory_allocs[record.handle()]
-                cuda_memory_usage = cuda_memory_allocs[record.handle()]
+                cpu_memory_usage = cpu_memory_allocs[get_record_key(record)]
+                cuda_memory_usage = cuda_memory_allocs[get_record_key(record)]
                 is_async = start.thread_id() != record.thread_id()
+                is_remote_event = False
+                remote_cpu_start = None
+                remote_cpu_end = None
+                cpu_start_offset = None
+                if record.is_remote():
+                    is_remote_event = True
+                    assert start.is_remote()
+                    # Find remote start_record.
+                    if remote_start_record is None:
+                        remote_start_records = [
+                            record
+                            for record in thread_record_list
+                            if record.name() == "__start_profile"
+                        ]
+                        assert (
+                            remote_start_records and len(remote_start_records) == 1
+                        ), "Expected to find single start_record for remote events"
+                        remote_start_record = remote_start_records[0]
+                    # Compute offset for trace.
+                    cpu_start_offset = (
+                        remote_start_record.get_cpu_ns() - start_record.get_cpu_ns()
+                    ) / 1000
+                    remote_cpu_end = remote_start_record.cpu_elapsed_us(record)
+                    remote_cpu_start = remote_start_record.cpu_elapsed_us(start)
 
                 fe = FunctionEvent(
                     id=record.handle(),
+                    node_id=record.node_id(),
                     name=string_table[start.name()],
                     thread=start.thread_id(),
-                    cpu_start=start_record.cpu_elapsed_us(start),
-                    cpu_end=start_record.cpu_elapsed_us(record),
+                    cpu_start=start_record.cpu_elapsed_us(start)
+                    if remote_cpu_start is None
+                    else remote_cpu_start,
+                    cpu_end=start_record.cpu_elapsed_us(record)
+                    if remote_cpu_end is None
+                    else remote_cpu_end,
                     input_shapes=start.shapes(),
                     cpu_memory_usage=cpu_memory_usage,
                     cuda_memory_usage=cuda_memory_usage,
-                    is_async=is_async)
+                    is_async=is_async, is_remote=is_remote_event,
+                    cpu_start_offset=cpu_start_offset)
                 # note: async events have only cpu total time
                 if not is_async and start.has_cuda():
-                    cuda_start = adjusted_time(start)
-                    cuda_end = adjusted_time(record)
+                    if is_remote_event:
+                        if not remote_start_cuda_records:
+                            assert all([r.is_remote() for r in thread_record_list])
+                            # N.B.: There should be a __cuda_start_event for each
+                            # CUDA device.
+                            remote_start_cuda_records = {
+                                r.device() : record
+                                for r in thread_record_list
+                                if r.name() == '__cuda_start_event'
+                            }
+
+                        assert remote_start_cuda_records
+                        assert start.device() == record.device()
+                        remote_start_cuda_record = remote_start_cuda_records[start.device()]
+                        assert remote_start_record is not None
+                        assert remote_start_cuda_record is not None
+                        cuda_start = adjusted_time_remote(
+                            start, remote_start_record, remote_start_cuda_record
+                        )
+                        cuda_end = adjusted_time_remote(
+                            record, remote_start_record, remote_start_cuda_record
+                        )
+                    else:
+                        cuda_start = adjusted_time(start)
+                        cuda_end = adjusted_time(record)
                     fe.append_kernel(
                         start.name(),
                         start.device(),
                         cuda_start,
                         cuda_end)
                 functions.append(fe)
-                del range_starts[record.handle()]
-                del cpu_memory_allocs[record.handle()]
-                del cuda_memory_allocs[record.handle()]
+                del range_starts[get_record_key(record)]
+                del cpu_memory_allocs[get_record_key(record)]
+                del cuda_memory_allocs[get_record_key(record)]
             elif record.kind() == 'memory_alloc':
                 for handle in cpu_memory_allocs.keys():
                     cpu_memory_allocs[handle] += record.cpu_memory_usage()
@@ -1025,6 +1149,10 @@ def build_table(
     headers.append(
         'Number of Calls'
     )
+    # Only append Node ID if any event has a valid (>= 0) Node ID
+    append_node_id = any([evt.node_id != -1 for evt in events])
+    if append_node_id:
+        headers.append('Node ID')
 
     # Have to use a list because nonlocal is Py3 only...
     SPACING_SIZE = 2
@@ -1072,12 +1200,12 @@ def build_table(
     for evt in events:
         row_values = [
             evt.key,  # Name
-            # Self CPU total %
+            # Self CPU total, 0 for async events. %
             format_time_share(evt.self_cpu_time_total,
                               self_cpu_time_total),
             evt.self_cpu_time_total_str,  # Self CPU total
-            # CPU total %
-            format_time_share(evt.cpu_time_total, self_cpu_time_total),
+            # CPU total %, 0 for async events.
+            format_time_share(evt.cpu_time_total, self_cpu_time_total) if not evt.is_async else 0,
             evt.cpu_time_total_str,  # CPU total
             evt.cpu_time_str,  # CPU time avg
         ]
@@ -1105,6 +1233,9 @@ def build_table(
         row_values.append(
             evt.count,  # Number of calls
         )
+
+        if append_node_id:
+            row_values.append(evt.node_id)
         if has_input_shapes:
             row_values.append(str(evt.input_shapes)[:SHAPES_COLUMN_WIDTH])
         append(row_format.format(*row_values))
