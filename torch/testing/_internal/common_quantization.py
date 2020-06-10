@@ -273,10 +273,20 @@ class LSTMDynamicModel(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.qconfig = default_dynamic_qconfig
-        self.lstm = torch.nn.LSTM(2, 2).to(dtype=torch.float)
+        self.mod = torch.nn.LSTM(2, 2).to(dtype=torch.float)
 
     def forward(self, x):
-        x = self.lstm(x)
+        x = self.mod(x)
+        return x
+
+class GRUDynamicModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.qconfig = default_dynamic_qconfig
+        self.mod = torch.nn.GRU(2, 2).to(dtype=torch.float)
+
+    def forward(self, x):
+        x = self.mod(x)
         return x
 
 class ConvModel(torch.nn.Module):
